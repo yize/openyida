@@ -132,7 +132,7 @@ function getCookiePath() {
   if (fs.existsSync(globalCookie)) {
     return globalCookie;
   }
-  return globalCookie; // 默认返回全局路径
+  return projectCookie; // 默认返回项目级路径，让用户在当前项目登录
 }
 
 /**
