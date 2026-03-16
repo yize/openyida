@@ -14,13 +14,11 @@ npm install -g openyida
 
 ## 支持的 AI 编程工具
 
-| 工具 | 支持方式 |
-|------|---------|
-| **Claude Code** | 安装时自动创建 Skills 软链接 |
-| **OpenCode** | 直接识别 Skills |
-| **Aone Copilot** | 直接识别 Skills |
-| **Cursor** | 通过 `.cursorrules` 配置 |
-| **悟空** | 通过 `.cursorrules` 配置 |
+- [Claude Code](https://claude.ai/code)
+- [OpenCode](https://opencode.ai)
+- [Aone Copilot](https://copilot.code.alibaba-inc.com)
+- Cursor
+- 悟空
 ---
 
 ## 依赖环境
