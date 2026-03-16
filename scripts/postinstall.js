@@ -3,7 +3,7 @@
  * postinstall 钩子：npm install -g openyida 后自动配置 IDE 集成
  *
  * 1. Claude Code：在 ~/.claude/skills/ 创建软链接指向内置 Skills
- * 2. 悟空（Wukong）：在 ~/.real/.skills/bundled/ 创建软链接
+ * 2. 悟空（Wukong）：将每个技能复制到 ~/.real/.skills/<uuid>/ 独立目录
  * 3. 创建全局配置目录和默认 config.json
  * 4. 安装 yida-publish-page 的 npm 依赖
  */
@@ -63,28 +63,75 @@ safeExec(() => {
 
 safeExec(() => {
   const wukongDir = path.join(HOME_DIR, ".real");
-  const wukongSkillsDir = path.join(wukongDir, ".skills", "bundled");
-  const symlinkPath = path.join(wukongSkillsDir, "openyida");
+  const wukongSkillsDir = path.join(wukongDir, ".skills");
 
   // 只在悟空目录存在时才集成
   if (!fs.existsSync(wukongDir)) return;
+  if (!fs.existsSync(SKILLS_DIR)) return;
 
   ensureDir(wukongSkillsDir);
 
-  // 创建/更新软链接
-  if (fs.existsSync(symlinkPath)) {
-    const stat = fs.lstatSync(symlinkPath);
-    if (stat.isSymbolicLink()) {
-      const currentTarget = fs.readlinkSync(symlinkPath);
-      if (currentTarget === PACKAGE_ROOT) return; // 已正确链接
-      fs.unlinkSync(symlinkPath);
-    } else {
-      // 不是软链接，跳过避免破坏用户数据
-      return;
+  // 读取已有的 openyida 技能映射（用于更新时保持 UUID 一致）
+  const mappingPath = path.join(wukongSkillsDir, ".openyida-mapping.json");
+  let skillMapping = {};
+  if (fs.existsSync(mappingPath)) {
+    try {
+      skillMapping = JSON.parse(fs.readFileSync(mappingPath, "utf-8"));
+    } catch { /* ignore */ }
+  }
+
+  // 递归复制目录
+  function copyDirRecursive(src, dest) {
+    ensureDir(dest);
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        copyDirRecursive(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
     }
   }
 
-  fs.symlinkSync(PACKAGE_ROOT, symlinkPath, "junction");
+  // 为技能名生成稳定的 UUID（基于名称哈希）
+  function generateSkillId(skillName) {
+    const crypto = require("crypto");
+    const hash = crypto.createHash("md5").update(`openyida-${skillName}`).digest("hex");
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+  }
+
+  // 遍历 skills/ 目录下的每个子技能
+  const skillDirs = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
+  let installedCount = 0;
+
+  for (const entry of skillDirs) {
+    if (!entry.isDirectory()) continue;
+    
+    const skillName = entry.name;
+    const srcSkillPath = path.join(SKILLS_DIR, skillName);
+
+    // 获取或生成技能 UUID
+    let skillId = skillMapping[skillName];
+    if (!skillId) {
+      skillId = generateSkillId(skillName);
+      skillMapping[skillName] = skillId;
+    }
+
+    const destSkillPath = path.join(wukongSkillsDir, skillId);
+
+    // 复制技能目录
+    copyDirRecursive(srcSkillPath, destSkillPath);
+    installedCount++;
+  }
+
+  // 保存映射文件
+  fs.writeFileSync(mappingPath, JSON.stringify(skillMapping, null, 2), "utf-8");
+
+  if (installedCount > 0) {
+    console.log(`[openyida] 已安装 ${installedCount} 个技能到悟空`);
+  }
 });
 
 // ── 2. 全局配置目录 ──────────────────────────────────────────────────
