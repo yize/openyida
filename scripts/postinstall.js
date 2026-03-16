@@ -2,7 +2,8 @@
 /**
  * postinstall 钩子：npm install -g openyida 后自动配置 IDE 集成
  *
- * 1. Claude Code：在 ~/.claude/skills/ 创建软链接指向内置 Skills
+ * 1. Claude Code / OpenCode / Cursor / VS Code：在 ~/.claude/skills/ 创建软链接
+ *    各 IDE 通过扫描该目录自动发现技能，无需额外配置
  * 2. 悟空（Wukong）：将每个技能复制到 ~/.real/.skills/<uuid>/ 独立目录
  * 3. 创建全局配置目录和默认 config.json
  * 4. 安装 yida-publish-page 的 npm 依赖
@@ -134,7 +135,7 @@ safeExec(() => {
   }
 });
 
-// ── 2. 全局配置目录 ──────────────────────────────────────────────────
+// ── 3. 全局配置目录 ──────────────────────────────────────────────────
 
 safeExec(() => {
   const globalConfigDir = process.platform === "win32"
