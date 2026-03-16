@@ -18,6 +18,7 @@ npm install -g openyida
 - [OpenCode](https://opencode.ai)
 - [Aone Copilot](https://copilot.code.alibaba-inc.com)
 - [Cursor](https://cursor.com/)
+- [Visual Studio Code](https://code.visualstudio.com/)
 - 悟空
 
 ---
