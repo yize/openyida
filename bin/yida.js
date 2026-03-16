@@ -182,7 +182,7 @@ function runPythonScript(scriptPath, args = []) {
 program
   .name("openyida")
   .description("OpenYida CLI - 宜搭低代码 AI 开发工具（安装即用，零配置）")
-  .version("0.2.0");
+  .version("1.0.0");
 
 // ── openyida login ───────────────────────────────────────────────────
 
