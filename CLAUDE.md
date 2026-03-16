@@ -1,38 +1,41 @@
 # 宜搭 AI 应用开发指南
 
-本项目通过 AI Coding 工具（Claude/Open Code 等）+ 宜搭低代码平台，实现一句话生成完整应用。
+本项目通过 AI Coding 工具（Claude Code / OpenCode / Aone Copilot 等）+ 宜搭低代码平台，实现一句话生成完整应用。
+
+> **安装即用**：`npm install -g openyida` 后，Skills 内置于 npm 包，自动配置 IDE 集成，零配置。
 
 ---
 
 ## 项目结构
 
 ```
-项目根目录/
-├── CLAUDE.md                    # AI 开发指南（本文档）- 包含项目结构、开发流程、技能速查等
-├── README.md                    # 项目说明
-├── config.json                  # 全局配置（loginUrl、defaultBaseUrl）
-├── package.json                 # Node.js 项目配置
-├── install-skills.sh            # 技能安装脚本（macOS/Linux）
-├── install-skills.ps1           # 技能安装脚本（Windows）
-├── bin/
-│   └── yida.js                  # CLI 入口，和 AI 开发无关，忽略
-├── tests/                       # 测试目录，和 AI 开发无关，忽略
-│   ├── cli.test.js
-│   └── install.test.js
-├── .cache/                      # 临时缓存文件（运行时自动生成）
-│   ├── .gitkeep
-│   └── cookies.json             # 登录态缓存（运行时自动生成）
-├── pages/
-│   ├── src/                     # 自定义页面 JSX 源码
-│   │   └── <项目名>.js           # 可学习 demo-* 文件的代码
-│   └── dist/                    # 编译后产物（自动生成）
-│       └── .gitkeep
-├── prd/                         # 需求文档目录
-│   └── <项目名>.md               # 需求文档（含应用配置、字段设计）
-├── .claude/
-│   └── skills/                  # AI 技能目录（通过 install-skills.sh / install-skills.ps1 安装）
-└── .github/                     # 和 AI 开发无关，忽略
+openyida（npm 包）/
+├── bin/yida.js                  # CLI 入口
+├── skills/                      # 内置 Skills（随 npm 包分发）
+│   ├── yida-app/                # 完整应用开发流程
+│   ├── yida-login/              # 登录态管理
+│   ├── yida-logout/             # 退出登录
+│   ├── yida-create-app/         # 创建应用
+│   ├── yida-create-page/        # 创建自定义页面
+│   ├── yida-create-form-page/   # 创建表单页面
+│   ├── yida-get-schema/         # 获取表单 Schema
+│   ├── yida-custom-page/        # 自定义页面代码规范
+│   ├── yida-publish-page/       # 编译并发布页面
+│   └── yida-page-config/        # 页面配置管理
+├── scripts/postinstall.js       # 安装后自动配置
+└── config.json                  # 默认配置模板
 
+用户项目目录/
+├── config.json                  # 项目级配置（可选，覆盖全局配置）
+├── .cache/                      # 临时缓存（运行时自动生成）
+│   └── cookies.json             # 登录态缓存
+├── pages/src/                   # 自定义页面 JSX 源码
+└── prd/                         # 需求文档
+
+全局配置目录（~/.config/openyida/）：
+├── config.json                  # 全局配置（安装时自动创建）
+├── credentials/                 # 登录凭据
+└── cache/                       # 全局缓存
 ```
 
 ---
@@ -42,15 +45,12 @@
 | 依赖 | 版本 | 用途 |
 |------|------|------|
 | Node.js | ≥ 16 | 页面编译与发布脚本 |
-| Python | ≥ 3.8 | 登录态管理 |
+| Python | ≥ 3.10 | 登录态管理 |
 | Playwright | latest | 浏览器自动化（扫码登录） |
 
 ```bash
 # 安装 Python 依赖
 pip install playwright && playwright install chromium
-
-# 安装 Node 依赖（首次发布前执行）
-cd .claude/skills/skills/yida-publish-page/scripts && npm install
 ```
 
 ---
@@ -79,17 +79,18 @@ cd .claude/skills/skills/yida-publish-page/scripts && npm install
 
 ## 技能（Skills）速查
 
-| 技能 | 调用命令 | 用途 |
+> 推荐使用 CLI 命令，CLI 会自动定位内置 Skills 脚本。
+
+| 技能 | CLI 命令 | 用途 |
 |------|---------|------|
-| `yida-login` | `python3 .claude/skills/skills/yida-login/scripts/login.py` | 登录态管理（通常自动触发） |
-| `yida-logout` | `echo -n "" > .cache/cookies.json` | 退出登录 / 切换账号 |
-| `yida-create-app` | `node .claude/skills/skills/yida-create-app/scripts/create-app.js "<名称>"` | 创建应用，获取 appType |
-| `yida-create-page` | `node .claude/skills/skills/yida-create-page/scripts/create-page.js <appType> "<页面名>"` | 创建自定义页面，获取 pageId |
-| `yida-create-form-page` | `node .claude/skills/skills/yida-create-form-page/scripts/create-form-page.js create <appType> "<表单名>" <字段JSON>` | 创建/更新表单页面 |
-| `yida-get-schema` | `node .claude/skills/skills/yida-get-schema/scripts/get-schema.js <appType> <formUuid>` | 获取表单 Schema，确认字段 ID |
-| `yida-page-config` | `node .claude/skills/yida-page-config/scripts/verify-short-url.js <appType> <formUuid> <url>` | 页面公开访问/组织内分享配置（URL 验证、配置保存） |
-| `yida-custom-page` | 详见 `.claude/skills/skills/yida-custom-page/SKILL.md` | 编写自定义页面 JSX 代码（React 16 规范、状态管理、27 个 API） |
-| `yida-publish-page` | `node .claude/skills/skills/yida-publish-page/scripts/publish.js <appType> <formUuid> <源文件路径>` | 编译并发布自定义页面 |
+| `yida-login` | `openyida login` | 登录态管理（通常自动触发） |
+| `yida-logout` | `openyida logout` | 退出登录 / 切换账号 |
+| `yida-create-app` | `openyida create-app "<名称>"` | 创建应用，获取 appType |
+| `yida-create-page` | `openyida create-page <appType> "<页面名>"` | 创建自定义页面，获取 pageId |
+| `yida-create-form-page` | `openyida create-form <appType> "<表单名>" <字段JSON>` | 创建/更新表单页面 |
+| `yida-get-schema` | `openyida get-schema <appType> <formUuid>` | 获取表单 Schema，确认字段 ID |
+| `yida-custom-page` | 详见 Skills 目录中的 `SKILL.md` | 编写自定义页面 JSX 代码（React 16 规范） |
+| `yida-publish-page` | `openyida publish <源文件路径> <appType> <formUuid>` | 编译并发布自定义页面 |
 
 ---
 
@@ -113,9 +114,8 @@ cd .claude/skills/skills/yida-publish-page/scripts && npm install
 
 ### 临时文件规范
 
-所有临时文件（cookies、schema 缓存等）**必须写在项目根目录的 `.cache/` 文件夹中**，不要写在系统其他位置。
-
----
+- **项目内运行时**：临时文件写在项目根目录的 `.cache/` 文件夹中
+- **全局模式**：登录态凭据存储在 `~/.config/openyida/credentials/`，缓存存储在 `~/.config/openyida/cache/`
 
 ---
 

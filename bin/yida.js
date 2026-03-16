@@ -3,10 +3,9 @@
  * OpenYida CLI - 宜搭命令行工具
  *
  * 安装：npm install -g openyida
- * 用法：yida <命令> [参数]
+ * 用法：openyida <命令> [参数]（别名：yida）
  *
- * 通过调用 .claude/skills/skills/ 下的脚本复用 yida-skills 的能力。
- * Skills 安装位置：<项目根目录>/.claude/skills/skills/
+ * Skills 内置于 npm 包的 skills/ 目录，安装即用，零配置。
  */
 
 "use strict";
@@ -15,14 +14,65 @@ const { Command } = require("commander");
 const { execSync, spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 
 const program = new Command();
+
+// ── 全局配置目录 ──────────────────────────────────────────────────────
+
+/**
+ * 获取全局配置目录路径
+ * macOS/Linux: ~/.config/openyida
+ * Windows:     %APPDATA%/openyida
+ */
+function getGlobalConfigDir() {
+  if (process.platform === "win32") {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "openyida");
+  }
+  return path.join(os.homedir(), ".config", "openyida");
+}
+
+/**
+ * 获取内置 Skills 目录路径（npm 包内的 skills/ 目录）
+ */
+function getBuiltinSkillsDir() {
+  return path.resolve(__dirname, "..", "skills");
+}
+
+/**
+ * 获取全局配置文件路径
+ */
+function getGlobalConfigPath() {
+  return path.join(getGlobalConfigDir(), "config.json");
+}
+
+/**
+ * 获取全局凭据目录路径
+ */
+function getGlobalCredentialsDir() {
+  return path.join(getGlobalConfigDir(), "credentials");
+}
+
+/**
+ * 获取全局缓存目录路径
+ */
+function getGlobalCacheDir() {
+  return path.join(getGlobalConfigDir(), "cache");
+}
+
+/**
+ * 确保目录存在
+ */
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
 
 // ── 工具函数 ──────────────────────────────────────────────────────────
 
 /**
  * 查找项目根目录（向上查找 config.json 或 .git）
- * CLI 在项目目录内运行时，需要定位到包含 .claude/skills/skills 的根目录
  */
 function findProjectRoot() {
   let currentDir = process.cwd();
@@ -39,23 +89,50 @@ function findProjectRoot() {
 }
 
 /**
- * 获取 skill 脚本路径，并检查是否已安装
+ * 获取 skill 脚本路径（从内置 Skills 目录查找）
  */
 function getSkillScript(skillName, scriptFile) {
-  const projectRoot = findProjectRoot();
-  const scriptPath = path.join(projectRoot, ".claude", "skills", "skills", skillName, "scripts", scriptFile);
-
-  if (!fs.existsSync(scriptPath)) {
-    console.error(`\n❌ 未找到 skill 脚本：${scriptPath}`);
-    console.error(`\n请先运行安装脚本：`);
-    console.error(`  Mac/Linux：bash install-skills.sh`);
-    console.error(`  Windows：  .\\install-skills.ps1`);
-    console.error(`\n或手动克隆 yida-skills：`);
-    console.error(`  git clone --branch main --depth 1 https://github.com/openyida/yida-skills.git .claude/skills`);
-    process.exit(1);
+  const builtinDir = getBuiltinSkillsDir();
+  const scriptPath = path.join(builtinDir, skillName, "scripts", scriptFile);
+  if (fs.existsSync(scriptPath)) {
+    return scriptPath;
   }
 
-  return scriptPath;
+  console.error(`\n❌ 未找到内置 skill 脚本：${skillName}/${scriptFile}`);
+  console.error(`\n请重新安装：npm install -g openyida`);
+  process.exit(1);
+}
+
+/**
+ * 获取配置文件路径（优先项目级，其次全局级）
+ */
+function getConfigPath() {
+  const projectRoot = findProjectRoot();
+  const projectConfig = path.join(projectRoot, "config.json");
+  if (fs.existsSync(projectConfig)) {
+    return projectConfig;
+  }
+  const globalConfig = getGlobalConfigPath();
+  if (fs.existsSync(globalConfig)) {
+    return globalConfig;
+  }
+  return projectConfig; // 默认返回项目级路径
+}
+
+/**
+ * 获取 cookies 文件路径（优先项目级，其次全局级）
+ */
+function getCookiePath() {
+  const projectRoot = findProjectRoot();
+  const projectCookie = path.join(projectRoot, ".cache", "cookies.json");
+  if (fs.existsSync(projectCookie)) {
+    return projectCookie;
+  }
+  const globalCookie = path.join(getGlobalCredentialsDir(), "cookies.json");
+  if (fs.existsSync(globalCookie)) {
+    return globalCookie;
+  }
+  return globalCookie; // 默认返回全局路径
 }
 
 /**
@@ -92,7 +169,7 @@ function runPythonScript(scriptPath, args = []) {
 
   child.on("error", (error) => {
     if (error.code === "ENOENT") {
-      console.error(`\n❌ 未找到 python3，请先安装 Python 3.8+`);
+      console.error(`\n❌ 未找到 python3，请先安装 Python 3.10+`);
     } else {
       console.error(`\n❌ 执行失败：${error.message}`);
     }
@@ -103,11 +180,11 @@ function runPythonScript(scriptPath, args = []) {
 // ── CLI 配置 ──────────────────────────────────────────────────────────
 
 program
-  .name("yida / openyida")
-  .description("OpenYida CLI - 宜搭命令行工具")
-  .version("0.1.0");
+  .name("openyida")
+  .description("OpenYida CLI - 宜搭低代码 AI 开发工具（安装即用，零配置）")
+  .version("0.2.0");
 
-// ── yida login ────────────────────────────────────────────────────────
+// ── openyida login ───────────────────────────────────────────────────
 
 program
   .command("login")
@@ -156,7 +233,7 @@ program
     const scriptPath = getSkillScript("yida-create-app", "create-app.js");
     const args = [name];
     if (options.description) args.push(options.description);
-    else args.push(name); // 默认 description 同 name
+    else args.push(name);
     args.push(options.icon);
     args.push(options.color);
     runNodeScript(scriptPath, args);
@@ -254,7 +331,7 @@ program
       }
       try {
         const backupContent = fs.readFileSync(backupPath, "utf-8");
-        JSON.parse(backupContent); // 验证备份文件是合法 JSON
+        JSON.parse(backupContent);
         fs.writeFileSync(configPath, backupContent, "utf-8");
         console.log("✅ 已回滚到备份配置：");
         const config = JSON.parse(backupContent);
@@ -281,37 +358,50 @@ program
       return;
     }
 
-    // 默认：显示配置状态，并自动备份当前有效配置
+    // 默认：显示配置状态
+    const globalConfigDir = getGlobalConfigDir();
     console.log(`📁 项目根目录：${projectRoot}`);
+    console.log(`📁 全局配置目录：${globalConfigDir}`);
     console.log(`📄 配置文件：${configPath}`);
     console.log("");
 
     if (!fs.existsSync(configPath)) {
-      console.log("⚠️  未找到 config.json，使用默认配置");
-      console.log("   defaultBaseUrl: https://www.aliwork.com");
-      console.log("");
-      console.log("💡 运行 yida doctor --repair 自动创建配置模板");
-      return;
-    }
+      // 尝试全局配置
+      const globalConfig = getGlobalConfigPath();
+      if (fs.existsSync(globalConfig)) {
+        console.log("📄 使用全局配置：");
+        try {
+          const config = JSON.parse(fs.readFileSync(globalConfig, "utf-8"));
+          Object.entries(config).forEach(([key, value]) => {
+            console.log(`  ${key}: ${value}`);
+          });
+        } catch {
+          console.error("❌ 全局配置文件格式错误");
+        }
+      } else {
+        console.log("⚠️  未找到 config.json，使用默认配置");
+        console.log("   defaultBaseUrl: https://www.aliwork.com");
+      }
+    } else {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        console.log("当前配置：");
+        Object.entries(config).forEach(([key, value]) => {
+          console.log(`  ${key}: ${value}`);
+        });
 
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      console.log("当前配置：");
-      Object.entries(config).forEach(([key, value]) => {
-        console.log(`  ${key}: ${value}`);
-      });
-
-      // 自动备份有效配置
-      const cacheDir = path.join(projectRoot, ".cache");
-      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
-      fs.copyFileSync(configPath, backupPath);
-    } catch {
-      console.error("❌ 读取配置文件失败（JSON 格式错误）");
-      console.error("   运行 yida config --rollback 回滚到上一个有效配置");
+        // 自动备份有效配置
+        const cacheDir = path.join(projectRoot, ".cache");
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+        fs.copyFileSync(configPath, backupPath);
+      } catch {
+        console.error("❌ 读取配置文件失败（JSON 格式错误）");
+        console.error("   运行 yida config --rollback 回滚到上一个有效配置");
+      }
     }
 
     // 检查登录态
-    const cookiePath = path.join(projectRoot, ".cache", "cookies.json");
+    const cookiePath = getCookiePath();
     console.log("");
     if (fs.existsSync(cookiePath)) {
       try {
@@ -319,24 +409,26 @@ program
         const cookies = Array.isArray(cookieData) ? cookieData : cookieData.cookies || [];
         const hasToken = cookies.some((c) => c.name === "tianshu_csrf_token");
         console.log(`🔑 登录态：${hasToken ? "✅ 已登录" : "⚠️  Cookie 存在但可能已过期"}`);
+        console.log(`   位置：${cookiePath}`);
       } catch {
         console.log("🔑 登录态：⚠️  Cookie 文件损坏");
       }
     } else {
-      console.log("🔑 登录态：❌ 未登录（运行 yida login 登录）");
+      console.log("🔑 登录态：❌ 未登录（运行 openyida login 登录）");
     }
 
-    // 检查 skills 安装
-    const skillsPath = path.join(projectRoot, ".claude", "skills", "skills");
+    // 显示内置 Skills 信息
+    const builtinDir = getBuiltinSkillsDir();
     console.log("");
-    if (fs.existsSync(skillsPath)) {
-      const skills = fs.readdirSync(skillsPath).filter((name) =>
-        fs.statSync(path.join(skillsPath, name)).isDirectory()
+    if (fs.existsSync(builtinDir)) {
+      const skills = fs.readdirSync(builtinDir).filter((name) =>
+        fs.statSync(path.join(builtinDir, name)).isDirectory()
       );
-      console.log(`📦 已安装 Skills（${skills.length} 个）：`);
+      console.log(`📦 内置 Skills（${skills.length} 个）：`);
       skills.forEach((skill) => console.log(`  - ${skill}`));
+      console.log(`   位置：${builtinDir}`);
     } else {
-      console.log("📦 Skills：❌ 未安装（运行 bash install-skills.sh 安装）");
+      console.log("📦 Skills：❌ 内置 Skills 目录不存在，请重新安装：npm install -g openyida");
     }
   });
 
@@ -348,8 +440,8 @@ program
   .option("--repair", "自动修复可修复的问题（如创建 config.json 模板）")
   .addHelpText("after", `
 示例：
-  $ yida doctor            # 检查环境
-  $ yida doctor --repair   # 检查并自动修复`)
+  $ openyida doctor            # 检查环境
+  $ openyida doctor --repair   # 检查并自动修复`)
   .action((options) => {
     runDoctorCheck(options.repair);
   });
@@ -362,9 +454,9 @@ program
   .argument("<shell>", "目标 shell 类型：bash | zsh | fish")
   .addHelpText("after", `
 安装方法：
-  bash:  yida completion bash >> ~/.bashrc && source ~/.bashrc
-  zsh:   yida completion zsh >> ~/.zshrc && source ~/.zshrc
-  fish:  yida completion fish > ~/.config/fish/completions/yida.fish`)
+  bash:  openyida completion bash >> ~/.bashrc && source ~/.bashrc
+  zsh:   openyida completion zsh >> ~/.zshrc && source ~/.zshrc
+  fish:  openyida completion fish > ~/.config/fish/completions/openyida.fish`)
   .action((shellType) => {
     printCompletionScript(shellType);
   });
@@ -380,7 +472,7 @@ program
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: "yida> ",
+      prompt: "openyida> ",
       historySize: 100,
     });
 
@@ -412,16 +504,15 @@ program
   publish <file> <app> <form>    发布页面
   get-schema <app> <form>        获取表单 Schema
   config                         查看配置
+  doctor                         检查环境
   exit / quit                    退出 Shell
 `);
         rl.prompt();
         return;
       }
 
-      // 将输入解析为 argv 并交给 Commander 处理
       const args = parseShellArgs(input);
       try {
-        // 暂停 readline，等待子命令完成后恢复
         rl.pause();
         const child = spawn(process.execPath, [process.argv[1], ...args], {
           stdio: "inherit",
@@ -447,12 +538,11 @@ program
     });
   });
 
+
 // ── doctor / completion / config 辅助函数 ────────────────────────────
 
 /**
  * 校验 config.json 格式和必填字段
- * @param {string} configPath - config.json 的完整路径
- * @returns {string[]} 错误列表，空数组表示校验通过
  */
 function validateConfig(configPath) {
   const errors = [];
@@ -482,13 +572,11 @@ function validateConfig(configPath) {
 
 /**
  * 执行 yida doctor 环境检查
- * @param {boolean} repair - 是否自动修复可修复的问题
  */
 function runDoctorCheck(repair) {
   const projectRoot = findProjectRoot();
   const configPath = path.join(projectRoot, "config.json");
-  const cookiePath = path.join(projectRoot, ".cache", "cookies.json");
-  const skillsPath = path.join(projectRoot, ".claude", "skills", "skills");
+  const globalConfigDir = getGlobalConfigDir();
 
   console.log("🔍 检查 OpenYida 环境依赖...\n");
 
@@ -562,32 +650,55 @@ function runDoctorCheck(repair) {
     issues.push({ type: "fix", msg: "gh CLI 未登录", fix: "gh auth login" });
   }
 
-  // 7. config.json
-  const configErrors = validateConfig(configPath);
-  if (configErrors.length === 0) {
-    console.log("✅ config.json 存在且格式正确");
+  // 7. config.json（项目级或全局级）
+  const globalConfigPath = getGlobalConfigPath();
+  if (fs.existsSync(configPath)) {
+    const configErrors = validateConfig(configPath);
+    if (configErrors.length === 0) {
+      console.log("✅ config.json 存在且格式正确（项目级）");
+    } else {
+      console.log(`❌ config.json：${configErrors.join("；")}`);
+      issues.push({ type: "error", msg: `config.json 问题：${configErrors.join("；")}` });
+    }
+  } else if (fs.existsSync(globalConfigPath)) {
+    const configErrors = validateConfig(globalConfigPath);
+    if (configErrors.length === 0) {
+      console.log("✅ config.json 存在且格式正确（全局级）");
+    } else {
+      console.log(`❌ 全局 config.json：${configErrors.join("；")}`);
+      issues.push({ type: "error", msg: `全局 config.json 问题：${configErrors.join("；")}` });
+    }
   } else {
-    const isNotExist = configErrors[0].includes("不存在");
-    console.log(`${isNotExist ? "⚠️ " : "❌"} config.json：${configErrors.join("；")}`);
+    console.log("⚠️  config.json 不存在（项目级和全局级均未找到）");
     issues.push({
-      type: isNotExist ? "fix" : "error",
-      msg: `config.json 问题：${configErrors.join("；")}`,
-      fix: isNotExist ? "create-config" : null,
+      type: "fix",
+      msg: "config.json 不存在",
+      fix: "create-config",
     });
   }
 
-  // 8. Skills 安装
-  if (fs.existsSync(skillsPath)) {
-    const skills = fs.readdirSync(skillsPath).filter((name) =>
-      fs.statSync(path.join(skillsPath, name)).isDirectory()
+  // 8. 内置 Skills 检查
+  const builtinSkillsDir = getBuiltinSkillsDir();
+  if (fs.existsSync(builtinSkillsDir)) {
+    const skills = fs.readdirSync(builtinSkillsDir).filter((name) =>
+      fs.statSync(path.join(builtinSkillsDir, name)).isDirectory()
     );
-    console.log(`✅ Skills 已安装（${skills.length} 个）`);
+    console.log(`✅ Skills 已安装（内置 ${skills.length} 个）`);
   } else {
-    console.log("⚠️  Skills 未安装");
-    issues.push({ type: "warn", msg: "Skills 未安装，运行 bash install-skills.sh 安装" });
+    console.log("❌ 内置 Skills 目录不存在");
+    issues.push({ type: "error", msg: "内置 Skills 目录不存在，请重新安装：npm install -g openyida" });
   }
 
-  // 9. 宜搭登录态
+  // 9. 全局配置目录
+  if (fs.existsSync(globalConfigDir)) {
+    console.log(`✅ 全局配置目录：${globalConfigDir}`);
+  } else {
+    console.log(`⚠️  全局配置目录不存在：${globalConfigDir}`);
+    issues.push({ type: "fix", msg: "全局配置目录不存在", fix: "npm install -g openyida" });
+  }
+
+  // 10. 宜搭登录态
+  const cookiePath = getCookiePath();
   if (fs.existsSync(cookiePath)) {
     try {
       const cookieData = JSON.parse(fs.readFileSync(cookiePath, "utf-8"));
@@ -598,7 +709,7 @@ function runDoctorCheck(repair) {
       console.log("⚠️  宜搭登录态：Cookie 文件损坏");
     }
   } else {
-    console.log("⚠️  宜搭登录态：未登录（运行 yida login 登录）");
+    console.log("⚠️  宜搭登录态：未登录（运行 openyida login 登录）");
   }
 
   // 汇总
@@ -620,13 +731,21 @@ function runDoctorCheck(repair) {
     for (const issue of issues) {
       if (issue.type !== "fix") continue;
       if (issue.fix === "create-config") {
+        // 优先创建全局配置
+        ensureDir(getGlobalConfigDir());
         const template = {
           loginUrl: "https://www.aliwork.com/workPlatform",
           defaultBaseUrl: "https://www.aliwork.com",
         };
+        const targetPath = getGlobalConfigPath();
+        fs.writeFileSync(targetPath, JSON.stringify(template, null, 2), "utf-8");
+        console.log(`✅ 已创建全局配置文件：${targetPath}`);
+        // 同时在项目级创建（向后兼容）
         fs.writeFileSync(configPath, JSON.stringify(template, null, 2), "utf-8");
-        console.log("✅ 已创建 config.json 模板，请根据实际情况修改 loginUrl");
+        console.log("✅ 已创建项目级 config.json 模板");
         fixedCount++;
+      } else if (issue.fix === "npm install -g openyida") {
+        console.log("  💡 请运行：npm install -g openyida");
       } else if (issue.fix) {
         console.log(`  💡 请手动运行：${issue.fix}`);
       }
@@ -642,34 +761,33 @@ function runDoctorCheck(repair) {
       remaining.forEach((i) => console.log(`  - ${i.msg}${i.fix ? `（运行：${i.fix}）` : ""}`));
     }
   } else {
-    console.log(`\n运行 yida doctor --repair 自动修复可修复的问题`);
+    console.log(`\n运行 openyida doctor --repair 自动修复可修复的问题`);
   }
 }
 
 /**
  * 输出 shell 自动补全脚本
- * @param {string} shellType - bash | zsh | fish
  */
 function printCompletionScript(shellType) {
   const allCommands = [
-    "login", "logout", "create-app", "create-page", "create-form",
-    "publish", "get-schema", "config", "doctor", "completion", "shell",
+    "login", "logout", "create-app", "create-page",
+    "create-form", "publish", "get-schema", "config", "doctor", "completion", "shell",
   ];
   const commandsStr = allCommands.join(" ");
 
   switch (shellType.toLowerCase()) {
     case "bash":
       console.log(`# OpenYida CLI bash completion
-# 安装：yida completion bash >> ~/.bashrc && source ~/.bashrc
+# 安装：openyida completion bash >> ~/.bashrc && source ~/.bashrc
 
-_yida_completion() {
+_openyida_completion() {
   local cur prev words cword
   _init_completion || return
 
   local commands="${commandsStr}"
 
   case "$prev" in
-    yida)
+    openyida|yida)
       COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
       return ;;
     config)
@@ -687,14 +805,15 @@ _yida_completion() {
   esac
 }
 
-complete -F _yida_completion yida`);
+complete -F _openyida_completion openyida
+complete -F _openyida_completion yida`);
       break;
 
     case "zsh":
       console.log(`# OpenYida CLI zsh completion
-# 安装：yida completion zsh >> ~/.zshrc && source ~/.zshrc
+# 安装：openyida completion zsh >> ~/.zshrc && source ~/.zshrc
 
-_yida() {
+_openyida() {
   local -a commands
   commands=(
     'login:扫码登录宜搭'
@@ -716,7 +835,7 @@ _yida() {
 
   case $state in
     command)
-      _describe 'yida commands' commands ;;
+      _describe 'openyida commands' commands ;;
     args)
       case $words[2] in
         config)
@@ -733,34 +852,35 @@ _yida() {
 
 # 仅在交互式 shell 中注册补全（避免非交互式 shell 报错）
 if [[ -n \${ZSH_VERSION-} ]] && [[ \$- == *i* ]]; then
-  compdef _yida yida
+  compdef _openyida openyida
+  compdef _openyida yida
 fi`);
       break;
 
     case "fish":
       console.log(`# OpenYida CLI fish completion
-# 安装：yida completion fish > ~/.config/fish/completions/yida.fish
+# 安装：openyida completion fish > ~/.config/fish/completions/openyida.fish
 
-complete -c yida -e
-complete -c yida -f -n '__fish_use_subcommand' -a 'login' -d '扫码登录宜搭'
-complete -c yida -f -n '__fish_use_subcommand' -a 'logout' -d '退出登录'
-complete -c yida -f -n '__fish_use_subcommand' -a 'create-app' -d '创建宜搭应用'
-complete -c yida -f -n '__fish_use_subcommand' -a 'create-page' -d '创建自定义页面'
-complete -c yida -f -n '__fish_use_subcommand' -a 'create-form' -d '创建表单页面'
-complete -c yida -f -n '__fish_use_subcommand' -a 'publish' -d '发布页面到宜搭'
-complete -c yida -f -n '__fish_use_subcommand' -a 'get-schema' -d '获取表单 Schema'
-complete -c yida -f -n '__fish_use_subcommand' -a 'config' -d '查看/校验/回滚配置'
-complete -c yida -f -n '__fish_use_subcommand' -a 'doctor' -d '检查环境依赖'
-complete -c yida -f -n '__fish_use_subcommand' -a 'completion' -d '输出 shell 补全脚本'
-complete -c yida -f -n '__fish_use_subcommand' -a 'shell' -d '进入交互式 REPL 模式'
-complete -c yida -f -n '__fish_seen_subcommand_from config' -l validate -d '校验配置格式'
-complete -c yida -f -n '__fish_seen_subcommand_from config' -l rollback -d '回滚到备份配置'
-complete -c yida -f -n '__fish_seen_subcommand_from config' -l show -d '显示当前配置'
-complete -c yida -f -n '__fish_seen_subcommand_from doctor' -l repair -d '自动修复可修复的问题'
-complete -c yida -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
-complete -c yida -f -n '__fish_seen_subcommand_from create-app' -l description -d '应用描述'
-complete -c yida -f -n '__fish_seen_subcommand_from create-app' -l icon -d '图标标识'
-complete -c yida -f -n '__fish_seen_subcommand_from create-app' -l color -d '图标颜色'`);
+complete -c openyida -e
+complete -c openyida -f -n '__fish_use_subcommand' -a 'login' -d '扫码登录宜搭'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'logout' -d '退出登录'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'create-app' -d '创建宜搭应用'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'create-page' -d '创建自定义页面'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'create-form' -d '创建表单页面'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'publish' -d '发布页面到宜搭'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'get-schema' -d '获取表单 Schema'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'config' -d '查看/校验/回滚配置'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'doctor' -d '检查环境依赖'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'completion' -d '输出 shell 补全脚本'
+complete -c openyida -f -n '__fish_use_subcommand' -a 'shell' -d '进入交互式 REPL 模式'
+complete -c openyida -f -n '__fish_seen_subcommand_from config' -l validate -d '校验配置格式'
+complete -c openyida -f -n '__fish_seen_subcommand_from config' -l rollback -d '回滚到备份配置'
+complete -c openyida -f -n '__fish_seen_subcommand_from config' -l show -d '显示当前配置'
+complete -c openyida -f -n '__fish_seen_subcommand_from doctor' -l repair -d '自动修复可修复的问题'
+complete -c openyida -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
+complete -c openyida -f -n '__fish_seen_subcommand_from create-app' -l description -d '应用描述'
+complete -c openyida -f -n '__fish_seen_subcommand_from create-app' -l icon -d '图标标识'
+complete -c openyida -f -n '__fish_seen_subcommand_from create-app' -l color -d '图标颜色'`);
       break;
 
     default:
@@ -805,6 +925,17 @@ function parseShellArgs(input) {
 
   return args;
 }
+
+// ── 导出供测试使用 ────────────────────────────────────────────────────
+
+module.exports = {
+  getGlobalConfigDir,
+  getBuiltinSkillsDir,
+  findProjectRoot,
+  validateConfig,
+  getConfigPath,
+  getCookiePath,
+};
 
 // ── 解析并执行 ────────────────────────────────────────────────────────
 

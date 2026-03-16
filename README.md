@@ -1,67 +1,53 @@
 ## 快速开始
 
-### 第一步：克隆仓库
-
 ```bash
-git clone https://github.com/openyida/openyida.git
-cd openyida
+npm install -g openyida
 ```
 
-### 第二步：安装 Skills
+**安装即用，零配置。** 安装后在 Claude Code / OpenCode / Aone Copilot 中直接对话：
 
-用 VS Code 等代码编辑器打开项目，启动 AI 编程工具后直接对话：
-
-- `帮我安装技能`
-
-**或使用命令行**
-
-**Mac / Linux：**
-```bash
-bash install-skills.sh
-```
-
-**Windows（PowerShell）：**
-```powershell
-.\install-skills.ps1
-```
-脚本会**自动检测并安装**缺少的 Node.js / Python，国内网络自动切换阿里云加速源。
-
-> 💡 **国内网络访问 GitHub 较慢？** 可手动强制使用国内加速源：
-> ```bash
-> bash install-skills.sh --cn    # Mac / Linux
-> .\install-skills.ps1 --cn      # Windows
-> ```
-
-### 第三步：开始使用
-
-用 VS Code 等代码编辑器打开项目，启动 AI 编程工具后直接对话：
-
-- `帮我创建一个访客系统应用`
-- `帮我搭建一个生日祝福小游戏应用`
+- `帮我用宜搭创建一个 IPD 系统，需要管理芯片生产全流程`
+- `帮我搭建一个 CRM`
 - `帮我搭建个人薪资计算器应用`
+
+> Skills 内置于 npm 包，安装时自动配置 Claude Code 集成，无需额外步骤。
+
+---
+
+## 支持的 AI 编程工具
+
+| 工具 | 支持方式 |
+|------|---------|
+| **Claude Code** | 安装时自动创建 Skills 软链接 |
+| **OpenCode** | 直接识别 Skills |
+| **Aone Copilot** | 直接识别 Skills |
+| **Cursor** | 通过 `.cursorrules` 配置 |
 
 ---
 
 ## 依赖环境
 
-> 安装脚本会自动处理以下依赖，通常无需手动安装。
-
 | 依赖 | 版本要求 | 用途 |
 |------|----------|------|
-| Git | 任意版本 | 克隆仓库、安装 Skills |
-| Node.js | ≥ 16 | yida-publish、yida-create-* 系列脚本 |
-| Python | ≥ 3.10 | yida-login、yida-logout |
-| Playwright | latest | 登录态管理 |
+| Node.js | ≥ 16 | CLI 运行、页面发布 |
+| Python | ≥ 3.10 | 登录态管理（扫码登录） |
+| Playwright | latest | 浏览器自动化 |
 
-### CLI 工具（可选）
-
-如需在任意目录使用 `openyida` / `yida` 命令（如 `openyida doctor` 检查环境），可通过 npm 全局安装：
+### CLI 命令一览
 
 ```bash
-npm install -g openyida
+openyida login            # 扫码登录宜搭
+openyida logout           # 退出登录
+openyida create-app       # 创建宜搭应用
+openyida create-page      # 创建自定义页面
+openyida create-form      # 创建表单页面
+openyida publish          # 发布页面
+openyida get-schema       # 获取表单 Schema
+openyida config           # 查看/校验/回滚配置
+openyida doctor           # 检查环境依赖
+openyida completion       # 输出 shell 自动补全脚本
+openyida shell            # 进入交互式 REPL 模式
 ```
-
-> 💡 `login`、`publish` 等依赖 Skills 的命令，仍需在克隆的项目目录下运行。
 ---
 
 ## DEMO 展示
@@ -88,7 +74,7 @@ AI 生成灯谜图片，用户猜答案，猜错了有 AI 幽默提示。
 
 ---
 
-## 常用问法([yida-skills](https://github.com/openyida/yida-skills))
+## 常用问法
 
 1. 帮我搭建一个 xxx 应用
 2. 根据需求文档生成应用
@@ -102,9 +88,9 @@ AI 生成灯谜图片，用户猜答案，猜错了有 AI 幽默提示。
 
 ---
 
-## OpenClaw / Claude Code
+## OpenClaw
 
-通过 [yida-app](https://clawhub.ai/nicky1108/yida-app) 在 OpenClaw / Claude Code 中使用。
+通过 [yida-app](https://clawhub.ai/nicky1108/yida-app) 在 OpenClaw 中使用。
 
 安装：
 ```bash

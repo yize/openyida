@@ -1,277 +1,169 @@
 "use strict";
 
 /**
- * 安装脚本测试
+ * 安装与内置 Skills 测试
  *
- * 验证 install-skills.sh 和 install-skills.ps1 的关键行为：
- * - 脚本文件存在且语法正确
- * - 包含必要的环境检测逻辑
- * - 包含正确的镜像源配置
- * - 包含正确的错误处理
+ * 验证：
+ * - Skills 内置于 npm 包的 skills/ 目录
+ * - postinstall.js 脚本存在且语法正确
+ * - 内置 Skills 目录结构完整
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
-const INSTALL_SH = path.join(PROJECT_ROOT, "install-skills.sh");
-const INSTALL_PS1 = path.join(PROJECT_ROOT, "install-skills.ps1");
+const SKILLS_DIR = path.join(PROJECT_ROOT, "skills");
+const POSTINSTALL_SCRIPT = path.join(PROJECT_ROOT, "scripts", "postinstall.js");
 
-// ── 公共辅助 ─────────────────────────────────────────────────────────
+// ── 内置 Skills 测试 ─────────────────────────────────────────────────
 
-function readScript(filePath) {
-  return fs.readFileSync(filePath, "utf-8");
-}
-
-// ── install-skills.sh 测试 ────────────────────────────────────────────
-
-describe("install-skills.sh", () => {
-  let scriptContent;
-
-  beforeAll(() => {
-    scriptContent = readScript(INSTALL_SH);
+describe("内置 Skills", () => {
+  test("skills/ 目录存在", () => {
+    expect(fs.existsSync(SKILLS_DIR)).toBe(true);
   });
 
-  test("脚本文件存在", () => {
-    expect(fs.existsSync(INSTALL_SH)).toBe(true);
+  test("包含所有核心 Skills", () => {
+    const expectedSkills = [
+      "yida-app",
+      "yida-login",
+      "yida-logout",
+      "yida-create-app",
+      "yida-create-page",
+      "yida-create-form-page",
+      "yida-get-schema",
+      "yida-custom-page",
+      "yida-publish-page",
+      "yida-page-config",
+    ];
+    const actualSkills = fs.readdirSync(SKILLS_DIR).filter((name) =>
+      fs.statSync(path.join(SKILLS_DIR, name)).isDirectory()
+    );
+    expectedSkills.forEach((skill) => {
+      expect(actualSkills).toContain(skill);
+    });
   });
 
-  test("包含 shebang 头", () => {
-    expect(scriptContent.startsWith("#!/usr/bin/env sh")).toBe(true);
+  test("每个 Skill 都有 SKILL.md", () => {
+    const skills = fs.readdirSync(SKILLS_DIR).filter((name) =>
+      fs.statSync(path.join(SKILLS_DIR, name)).isDirectory()
+    );
+    skills.forEach((skill) => {
+      const skillMd = path.join(SKILLS_DIR, skill, "SKILL.md");
+      expect(fs.existsSync(skillMd)).toBe(true);
+    });
   });
 
-  test("包含项目根目录检查", () => {
-    expect(scriptContent).toContain("config.json");
-    expect(scriptContent).toContain("请在项目根目录下运行此脚本");
+  test("有脚本的 Skill 都有 scripts/ 目录", () => {
+    const skillsWithScripts = [
+      "yida-login",
+      "yida-logout",
+      "yida-create-app",
+      "yida-create-page",
+      "yida-create-form-page",
+      "yida-get-schema",
+      "yida-publish-page",
+      "yida-page-config",
+    ];
+    skillsWithScripts.forEach((skill) => {
+      const scriptsDir = path.join(SKILLS_DIR, skill, "scripts");
+      expect(fs.existsSync(scriptsDir)).toBe(true);
+    });
   });
 
-  // ── git 检测 ────────────────────────────────────────────────────
-
-  test("包含 git 环境检测", () => {
-    expect(scriptContent).toContain("command -v git");
+  test("yida-login 包含 login.py", () => {
+    const loginScript = path.join(SKILLS_DIR, "yida-login", "scripts", "login.py");
+    expect(fs.existsSync(loginScript)).toBe(true);
   });
 
-  test("git 缺失时退出并给出提示", () => {
-    expect(scriptContent).toContain("未找到 git");
-    expect(scriptContent).toMatch(/exit 1/);
+  test("yida-create-app 包含 create-app.js", () => {
+    const script = path.join(SKILLS_DIR, "yida-create-app", "scripts", "create-app.js");
+    expect(fs.existsSync(script)).toBe(true);
   });
 
-  // ── Node.js 检测与安装 ───────────────────────────────────────────
-
-  test("包含 Node.js 环境检测", () => {
-    expect(scriptContent).toContain("command -v node");
-  });
-
-  test("Node.js 缺失时支持 Homebrew 自动安装", () => {
-    expect(scriptContent).toContain("brew install node");
-  });
-
-  test("Node.js 缺失时支持 apt 自动安装（阿里云镜像）", () => {
-    expect(scriptContent).toContain("apt-get install -y nodejs");
-    expect(scriptContent).toContain("mirrors.aliyun.com/nodesource");
-  });
-
-  test("Node.js 缺失时支持 yum 自动安装（阿里云镜像）", () => {
-    expect(scriptContent).toContain("yum install -y nodejs");
-    expect(scriptContent).toContain("mirrors.aliyun.com/nodesource");
-  });
-
-  test("Node.js 安装后配置 npm 淘宝镜像", () => {
-    expect(scriptContent).toContain("npm config set registry https://registry.npmmirror.com");
-  });
-
-  test("Node.js 版本过低时给出升级提示", () => {
-    expect(scriptContent).toContain("NODE_MAJOR");
-    expect(scriptContent).toContain("版本过低");
-  });
-
-  // ── Python 检测与安装 ────────────────────────────────────────────
-
-  test("包含 Python 环境检测", () => {
-    expect(scriptContent).toContain("command -v python3");
-  });
-
-  test("Python 缺失时支持 Homebrew 自动安装", () => {
-    expect(scriptContent).toContain("brew install python");
-  });
-
-  test("Python 缺失时支持 apt 自动安装", () => {
-    expect(scriptContent).toContain("apt-get install -y python3");
-  });
-
-  test("Python 缺失时支持 yum 自动安装", () => {
-    expect(scriptContent).toContain("yum install -y python3");
-  });
-
-  test("Python 安装后配置 pip 阿里云镜像", () => {
-    expect(scriptContent).toContain("pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/");
-    expect(scriptContent).toContain("pip3 config set global.trusted-host mirrors.aliyun.com");
-  });
-
-  test("Python 版本过低时给出升级提示", () => {
-    expect(scriptContent).toContain("PYTHON_MAJOR");
-    expect(scriptContent).toContain("PYTHON_MINOR");
-    expect(scriptContent).toContain("版本过低");
-  });
-
-  // ── 网络源检测 ───────────────────────────────────────────────────
-
-  test("支持 --cn 参数强制使用国内加速源", () => {
-    expect(scriptContent).toContain('--cn');
-    expect(scriptContent).toContain("ghproxy.com");
-  });
-
-  test("支持 --global 参数强制使用原始 GitHub 地址", () => {
-    expect(scriptContent).toContain('--global');
-    expect(scriptContent).toContain("github.com/openyida/yida-skills.git");
-  });
-
-  test("自动检测网络环境（curl 超时检测）", () => {
-    expect(scriptContent).toContain("connect-timeout");
-    expect(scriptContent).toContain("github.com");
-  });
-
-  // ── Skills 安装 ──────────────────────────────────────────────────
-
-  test("Skills 目录路径正确（.claude/skills）", () => {
-    expect(scriptContent).toContain('.claude/skills');
-  });
-
-  test("Skills 已存在时执行 git pull 更新", () => {
-    expect(scriptContent).toContain("git -C");
-    expect(scriptContent).toContain("pull origin");
-  });
-
-  test("Skills 不存在时执行 git clone", () => {
-    expect(scriptContent).toContain("git clone --branch");
-    expect(scriptContent).toContain("--depth 1");
-  });
-
-  test("安装完成后列出已安装的 Skills", () => {
-    expect(scriptContent).toContain("已安装的 Skills");
+  test("yida-publish-page 包含 publish.js 和 package.json", () => {
+    const publishScript = path.join(SKILLS_DIR, "yida-publish-page", "scripts", "publish.js");
+    const packageJson = path.join(SKILLS_DIR, "yida-publish-page", "scripts", "package.json");
+    expect(fs.existsSync(publishScript)).toBe(true);
+    expect(fs.existsSync(packageJson)).toBe(true);
   });
 });
 
-// ── install-skills.ps1 测试 ───────────────────────────────────────────
+// ── postinstall.js 测试 ──────────────────────────────────────────────
 
-describe("install-skills.ps1", () => {
-  let scriptContent;
-
-  beforeAll(() => {
-    scriptContent = readScript(INSTALL_PS1);
-  });
-
+describe("postinstall.js", () => {
   test("脚本文件存在", () => {
-    expect(fs.existsSync(INSTALL_PS1)).toBe(true);
+    expect(fs.existsSync(POSTINSTALL_SCRIPT)).toBe(true);
   });
 
-  test("包含 param 声明（支持 --cn/--global 参数）", () => {
-    expect(scriptContent).toContain("param(");
-    expect(scriptContent).toContain('$Mode');
+  test("脚本语法正确", () => {
+    const { execSync } = require("child_process");
+    expect(() => {
+      execSync(`node --check "${POSTINSTALL_SCRIPT}"`, { stdio: "pipe" });
+    }).not.toThrow();
   });
 
-  test("ErrorActionPreference 设置为 Continue（避免 winget 非零退出码中断）", () => {
-    expect(scriptContent).toContain('$ErrorActionPreference = "Continue"');
-    expect(scriptContent).not.toContain('$ErrorActionPreference = "Stop"');
+  test("包含 Claude Code 集成逻辑", () => {
+    const content = fs.readFileSync(POSTINSTALL_SCRIPT, "utf-8");
+    expect(content).toContain(".claude");
+    expect(content).toContain("skills");
+    expect(content).toContain("symlinkSync");
   });
 
-  test("包含项目根目录检查", () => {
-    expect(scriptContent).toContain("config.json");
-    expect(scriptContent).toContain("请在项目根目录下运行此脚本");
+  test("包含全局配置目录创建逻辑", () => {
+    const content = fs.readFileSync(POSTINSTALL_SCRIPT, "utf-8");
+    expect(content).toContain("openyida");
+    expect(content).toContain("config.json");
+    expect(content).toContain("credentials");
   });
 
-  // ── git 检测 ────────────────────────────────────────────────────
+  test("包含 yida-publish-page 依赖安装逻辑", () => {
+    const content = fs.readFileSync(POSTINSTALL_SCRIPT, "utf-8");
+    expect(content).toContain("yida-publish-page");
+    expect(content).toContain("npm install");
+  });
+});
 
-  test("包含 git 环境检测", () => {
-    expect(scriptContent).toContain("Get-Command git");
+// ── Skills JS 脚本语法检查 ───────────────────────────────────────────
+
+describe("Skills JS 脚本语法检查", () => {
+  const { execSync } = require("child_process");
+
+  test("所有 JS 脚本语法正确", () => {
+    const skills = fs.readdirSync(SKILLS_DIR).filter((name) =>
+      fs.statSync(path.join(SKILLS_DIR, name)).isDirectory()
+    );
+
+    skills.forEach((skill) => {
+      const scriptsDir = path.join(SKILLS_DIR, skill, "scripts");
+      if (!fs.existsSync(scriptsDir)) return;
+
+      const jsFiles = fs.readdirSync(scriptsDir).filter((f) => f.endsWith(".js"));
+      jsFiles.forEach((jsFile) => {
+        const filePath = path.join(scriptsDir, jsFile);
+        expect(() => {
+          execSync(`node --check "${filePath}"`, { stdio: "pipe" });
+        }).not.toThrow();
+      });
+    });
   });
 
-  test("git 缺失时退出并给出提示", () => {
-    expect(scriptContent).toContain("未找到 git");
-    expect(scriptContent).toContain("exit 1");
-  });
+  test("所有 JSON 文件格式正确", () => {
+    const skills = fs.readdirSync(SKILLS_DIR).filter((name) =>
+      fs.statSync(path.join(SKILLS_DIR, name)).isDirectory()
+    );
 
-  // ── Node.js 检测与安装 ───────────────────────────────────────────
+    skills.forEach((skill) => {
+      const scriptsDir = path.join(SKILLS_DIR, skill, "scripts");
+      if (!fs.existsSync(scriptsDir)) return;
 
-  test("包含 Node.js 环境检测", () => {
-    expect(scriptContent).toContain("Get-Command node");
-  });
-
-  test("Node.js 缺失时使用 winget 自动安装", () => {
-    expect(scriptContent).toContain("winget install OpenJS.NodeJS.LTS");
-    expect(scriptContent).toContain("--accept-source-agreements");
-  });
-
-  test("Node.js 安装后刷新环境变量", () => {
-    expect(scriptContent).toContain("GetEnvironmentVariable");
-    expect(scriptContent).toContain('"Path"');
-  });
-
-  test("Node.js 安装后配置 npm 淘宝镜像", () => {
-    expect(scriptContent).toContain("npm config set registry https://registry.npmmirror.com");
-  });
-
-  test("Node.js 版本过低时给出升级提示", () => {
-    expect(scriptContent).toContain("nodeMajor");
-    expect(scriptContent).toContain("版本过低");
-  });
-
-  // ── Python 检测与安装 ────────────────────────────────────────────
-
-  test("包含 Python 环境检测", () => {
-    expect(scriptContent).toContain("Get-Command python");
-  });
-
-  test("Python 缺失时使用 winget 自动安装", () => {
-    expect(scriptContent).toContain("winget install Python.Python.3.12");
-    expect(scriptContent).toContain("--accept-source-agreements");
-  });
-
-  test("Python 安装后配置 pip 阿里云镜像", () => {
-    expect(scriptContent).toContain("pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/");
-    expect(scriptContent).toContain("pip config set global.trusted-host mirrors.aliyun.com");
-  });
-
-  test("Python 版本过低时给出升级提示", () => {
-    expect(scriptContent).toContain("pythonMajor");
-    expect(scriptContent).toContain("pythonMinor");
-    expect(scriptContent).toContain("版本过低");
-  });
-
-  // ── 网络源检测 ───────────────────────────────────────────────────
-
-  test("支持 --cn 参数强制使用国内加速源", () => {
-    expect(scriptContent).toContain('"--cn"');
-    expect(scriptContent).toContain("ghproxy.com");
-  });
-
-  test("支持 --global 参数强制使用原始 GitHub 地址", () => {
-    expect(scriptContent).toContain('"--global"');
-    expect(scriptContent).toContain("github.com/openyida/yida-skills.git");
-  });
-
-  test("自动检测网络环境（Invoke-WebRequest 超时检测）", () => {
-    expect(scriptContent).toContain("Invoke-WebRequest");
-    expect(scriptContent).toContain("TimeoutSec");
-  });
-
-  // ── Skills 安装 ──────────────────────────────────────────────────
-
-  test("Skills 目录路径正确（.claude\\skills）", () => {
-    expect(scriptContent).toContain('.claude\\skills');
-  });
-
-  test("Skills 已存在时执行 git pull 更新", () => {
-    expect(scriptContent).toContain("git -C");
-    expect(scriptContent).toContain("pull origin");
-  });
-
-  test("Skills 不存在时执行 git clone", () => {
-    expect(scriptContent).toContain("git clone --branch");
-    expect(scriptContent).toContain("--depth 1");
-  });
-
-  test("安装完成后列出已安装的 Skills", () => {
-    expect(scriptContent).toContain("已安装的 Skills");
+      const jsonFiles = fs.readdirSync(scriptsDir).filter((f) => f.endsWith(".json"));
+      jsonFiles.forEach((jsonFile) => {
+        const filePath = path.join(scriptsDir, jsonFile);
+        expect(() => {
+          JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        }).not.toThrow();
+      });
+    });
   });
 });
