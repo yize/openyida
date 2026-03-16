@@ -25,6 +25,9 @@ jobs:
       with:
         node-version: '20'
 
+    - name: Sync Skills from yida-skills
+      run: node scripts/prepublish.js
+
     - name: Verify built-in Skills
       run: |
         echo "📦 验证内置 Skills..."
