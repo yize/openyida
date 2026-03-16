@@ -1,6 +1,6 @@
 # 宜搭 AI 应用开发指南
 
-本项目通过 AI Coding 工具（Claude Code / OpenCode / Aone Copilot 等）+ 宜搭低代码平台，实现一句话生成完整应用。
+本项目通过 AI Coding 工具（Claude Code / OpenCode / Aone Copilot / Cursor / VS Code / 悟空 等）+ 宜搭低代码平台，实现一句话生成完整应用。
 
 > **安装即用**：`npm install -g openyida` 后，Skills 内置于 npm 包，自动配置 IDE 集成，零配置。
 
