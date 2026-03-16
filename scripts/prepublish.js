@@ -76,11 +76,16 @@ try {
   removeDir(SKILLS_DIR);
   ensureDir(SKILLS_DIR);
 
-  // 4. 复制所有 skill 目录（以 yida- 开头的目录）
-  const entries = fs.readdirSync(tempDir, { withFileTypes: true });
+  // 4. 从 yida-skills 仓库的 skills/ 子目录复制所有 skill
+  const remoteSkillsDir = path.join(tempDir, "skills");
+  if (!fs.existsSync(remoteSkillsDir)) {
+    throw new Error("yida-skills 仓库中没有 skills/ 目录");
+  }
+  
+  const entries = fs.readdirSync(remoteSkillsDir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory() && entry.name.startsWith("yida-")) {
-      const srcPath = path.join(tempDir, entry.name);
+      const srcPath = path.join(remoteSkillsDir, entry.name);
       const destPath = path.join(SKILLS_DIR, entry.name);
       console.log(`[prepublish] 复制 ${entry.name}...`);
       copyDir(srcPath, destPath);
