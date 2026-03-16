@@ -155,23 +155,11 @@ safeExec(() => {
   }
 });
 
-// ── 3. OpenCode 插件注册 ────────────────────────────────────────────
-
-safeExec(() => {
-  const opencodeConfigDir = path.join(HOME_DIR, ".config", "opencode");
-  const opencodeConfigPath = path.join(opencodeConfigDir, "opencode.json");
-
-  if (fs.existsSync(opencodeConfigPath)) {
-    const content = fs.readFileSync(opencodeConfigPath, "utf-8");
-    const config = JSON.parse(content);
-
-    if (!config.plugin) config.plugin = [];
-    if (!config.plugin.includes("openyida")) {
-      config.plugin.push("openyida");
-      fs.writeFileSync(opencodeConfigPath, JSON.stringify(config, null, 2), "utf-8");
-    }
-  }
-});
+// ── 3. OpenCode / Cursor / VS Code 集成 ────────────────────────────
+//
+// 这些 IDE 通过扫描 ~/.claude/skills/ 目录自动发现技能（与 Claude Code 共用软链接），
+// 无需额外修改任何 IDE 配置文件，避免污染用户环境。
+// 步骤 1 创建的软链接已覆盖所有支持该目录的 IDE。
 
 // ── 4. 安装 yida-publish-page 依赖 ──────────────────────────────────
 
