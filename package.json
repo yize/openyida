@@ -9,7 +9,7 @@
   "files": [
     "bin/",
     "skills/",
-    "scripts/postinstall.js",
+    "scripts/",
     "config.json",
     "README.md",
     "LICENSE"
@@ -17,7 +17,9 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "prepublishOnly": "node scripts/prepublish.js",
+    "postpublish": "node scripts/postpublish.js"
   },
   "keywords": ["yida", "aliwork", "dingtalk", "cli", "openyida", "low-code", "ai"],
   "author": "OpenYida Contributors",

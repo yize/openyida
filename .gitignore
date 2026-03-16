@@ -25,3 +25,6 @@ prd/*
 !prd/demo-*
 .claude/*
 !.claude/CLAUDE.md
+
+# skills 目录在 npm publish 时从 yida-skills 仓库动态同步
+skills/
