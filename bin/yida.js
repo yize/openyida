@@ -132,7 +132,7 @@ function getCookiePath() {
   if (fs.existsSync(globalCookie)) {
     return globalCookie;
   }
-  return globalCookie; // 默认返回全局路径
+  return projectCookie; // 默认返回项目级路径，让用户在当前项目登录
 }
 
 /**
@@ -182,7 +182,7 @@ function runPythonScript(scriptPath, args = []) {
 program
   .name("openyida")
   .description("OpenYida CLI - 宜搭低代码 AI 开发工具（安装即用，零配置）")
-  .version("0.2.0");
+  .version("1.0.0");
 
 // ── openyida login ───────────────────────────────────────────────────
 
