@@ -115,7 +115,7 @@ pip install playwright && playwright install chromium
 ### 临时文件规范
 
 - **项目内运行时**：临时文件写在项目根目录的 `.cache/` 文件夹中
-- **全局模式**：登录态凭据存储在 `~/.config/openyida/credentials/`，缓存存储在 `~/.config/openyida/cache/`
+- **全局模式**：登录态凭据优先读取项目 `.cache/cookies.json`，不存在则使用全局 `~/.config/openyida/credentials/cookies.json`
 
 ---
 
