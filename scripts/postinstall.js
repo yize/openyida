@@ -3,7 +3,7 @@
  * postinstall 钩子：npm install -g openyida 后自动配置 IDE 集成
  *
  * 1. Claude Code：在 ~/.claude/skills/ 创建软链接指向内置 Skills
- * 2. 悟空（Wukong）：在 ~/.real/.skills/ 创建软链接
+ * 2. 悟空（Wukong）：在 ~/.real/.skills/bundled/ 创建软链接
  * 3. 创建全局配置目录和默认 config.json
  * 4. 安装 yida-publish-page 的 npm 依赖
  */
@@ -63,7 +63,7 @@ safeExec(() => {
 
 safeExec(() => {
   const wukongDir = path.join(HOME_DIR, ".real");
-  const wukongSkillsDir = path.join(wukongDir, ".skills");
+  const wukongSkillsDir = path.join(wukongDir, ".skills", "bundled");
   const symlinkPath = path.join(wukongSkillsDir, "openyida");
 
   // 只在悟空目录存在时才集成
