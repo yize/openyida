@@ -4,27 +4,22 @@
 npm install -g openyida
 ```
 
-**安装即用，零配置。** 安装后在 Claude Code / OpenCode / Aone Copilot 中直接对话：
+**安装即用，零配置。** 安装后在支持的 AI 编程工具中直接对话：
 
 - `帮我用宜搭创建一个 IPD 系统，需要管理芯片生产全流程`
 - `帮我搭建一个 CRM`
 - `帮我搭建个人薪资计算器应用`
 
-> Skills 内置于 npm 包，安装时自动配置 Claude Code 集成，无需额外步骤。
+> Skills 内置于 npm 包，安装时自动配置 IDE 集成，无需额外步骤。
 
 ---
 
 ## 支持的 AI 编程工具
 
-| 工具 | 支持方式 |
-|------|---------|
-| **Claude Code** | 安装时自动创建 Skills 软链接 |
-| **OpenCode** | 直接识别 Skills |
-| **Aone Copilot** | 直接识别 Skills |
-| **Cursor** | 通过 `.cursorrules` 配置 |
-
----
-
+- [Claude Code](https://claude.ai/code)
+- [OpenCode](https://opencode.ai)
+- [Aone Copilot](https://copilot.code.alibaba-inc.com)
+- Cursor
 ## 依赖环境
 
 | 依赖 | 版本要求 | 用途 |
