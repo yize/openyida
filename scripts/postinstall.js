@@ -3,8 +3,9 @@
  * postinstall 钩子：npm install -g openyida 后自动配置 IDE 集成
  *
  * 1. Claude Code：在 ~/.claude/skills/ 创建软链接指向内置 Skills
- * 2. 创建全局配置目录和默认 config.json
- * 3. 安装 yida-publish-page 的 npm 依赖
+ * 2. 悟空（Wukong）：在 ~/.real/.skills/ 创建软链接
+ * 3. 创建全局配置目录和默认 config.json
+ * 4. 安装 yida-publish-page 的 npm 依赖
  */
 
 "use strict";
@@ -41,6 +42,34 @@ safeExec(() => {
   const symlinkPath = path.join(claudeSkillsDir, "openyida");
 
   ensureDir(claudeSkillsDir);
+
+  // 创建/更新软链接
+  if (fs.existsSync(symlinkPath)) {
+    const stat = fs.lstatSync(symlinkPath);
+    if (stat.isSymbolicLink()) {
+      const currentTarget = fs.readlinkSync(symlinkPath);
+      if (currentTarget === PACKAGE_ROOT) return; // 已正确链接
+      fs.unlinkSync(symlinkPath);
+    } else {
+      // 不是软链接，跳过避免破坏用户数据
+      return;
+    }
+  }
+
+  fs.symlinkSync(PACKAGE_ROOT, symlinkPath, "junction");
+});
+
+// ── 2. 悟空（Wukong）集成 ────────────────────────────────────────────
+
+safeExec(() => {
+  const wukongDir = path.join(HOME_DIR, ".real");
+  const wukongSkillsDir = path.join(wukongDir, ".skills");
+  const symlinkPath = path.join(wukongSkillsDir, "openyida");
+
+  // 只在悟空目录存在时才集成
+  if (!fs.existsSync(wukongDir)) return;
+
+  ensureDir(wukongSkillsDir);
 
   // 创建/更新软链接
   if (fs.existsSync(symlinkPath)) {
