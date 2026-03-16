@@ -17,7 +17,7 @@ npm install -g openyida
 - [Claude Code](https://claude.ai/code)
 - [OpenCode](https://opencode.ai)
 - [Aone Copilot](https://copilot.code.alibaba-inc.com)
-- Cursor
+- [Cursor](https://cursor.com/)
 - 悟空
 ---
 
