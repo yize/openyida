@@ -63,9 +63,9 @@ export function forceUpdate() {
 
 export function didMount() {
   // 启动倒计时
-  updateCountdown.call(this);
+  this.updateCountdown();
   _customState._countdownTimer = setInterval(function() {
-    updateCountdown.call(this);
+    this.updateCountdown();
   }.bind(this), 1000);
 
   // 启动报名动态轮播
@@ -88,7 +88,7 @@ export function didUnmount() {
   clearInterval(_customState._countTimer);
 }
 
-function updateCountdown() {
+export function updateCountdown() {
   // 目标时间：2026年3月15日 14:00 GMT+8
   var targetTime = new Date('2026-03-15T14:00:00+08:00').getTime();
   var now = new Date().getTime();
@@ -107,12 +107,100 @@ function updateCountdown() {
   this.setCustomState({ countdownDays: days, countdownHours: hours, countdownMinutes: minutes, countdownSeconds: seconds });
 }
 
+/**
+ * 滚动到报名表单
+ */
+export function scrollToForm() {
+  var formEl = document.getElementById('registration-form');
+  if (formEl) {
+    formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+/**
+ * 处理表单提交
+ */
+export function handleSubmit(e) {
+  e.preventDefault();
+
+  // 获取表单值
+  var name = _customState.formName || '';
+  var company = _customState.formCompany || '';
+  var position = _customState.formPosition || '';
+  var email = _customState.formEmail || '';
+
+  // 表单验证
+  if (!name.trim()) {
+    this.setCustomState({ submitError: '请输入您的姓名' });
+    return;
+  }
+  if (!company.trim()) {
+    this.setCustomState({ submitError: '请输入您的公司名称' });
+    return;
+  }
+  if (!position || position === '请选择') {
+    this.setCustomState({ submitError: '请选择您的职位' });
+    return;
+  }
+  if (!email.trim()) {
+    this.setCustomState({ submitError: '请输入工作邮箱' });
+    return;
+  }
+  // 简单邮箱格式验证
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    this.setCustomState({ submitError: '请输入有效的邮箱地址' });
+    return;
+  }
+
+  // 清除错误，设置提交中状态
+  this.setCustomState({ isSubmitting: true, submitError: '' });
+
+  // 保存到宜搭表单
+  var appType = window.pageConfig && window.pageConfig.appType;
+  var formUuid = 'FORM-76402507C605423DA55BB8C934E2B31509D5';
+
+  this.utils.yida.saveFormData({
+    formUuid: formUuid,
+    appType: appType,
+    formDataJson: JSON.stringify({
+      textField_8904dr89: name,
+      textField_8904s2zw: company,
+      textField_8904xumu: position,
+      textField_8904fybo: email,
+      textField_8904e54g: '未来视野2026发布会',
+      dateField_8904yv3d: new Date().getTime(),
+    }),
+  }).then(function(res) {
+    // 提交成功
+    this.setCustomState({ isSubmitting: false, isSubmitted: true });
+    this.utils.toast({ title: '报名成功！', type: 'success' });
+    
+    // 清空表单
+    _customState.formName = '';
+    _customState.formCompany = '';
+    _customState.formPosition = '';
+    _customState.formEmail = '';
+    var nameInput = document.getElementById('field-name');
+    var companyInput = document.getElementById('field-company');
+    var positionInput = document.getElementById('field-position');
+    var emailInput = document.getElementById('field-email');
+    if (nameInput) nameInput.value = '';
+    if (companyInput) companyInput.value = '';
+    if (positionInput) positionInput.value = '请选择';
+    if (emailInput) emailInput.value = '';
+  }.bind(this)).catch(function(err) {
+    // 提交失败
+    this.setCustomState({ isSubmitting: false, submitError: err.message || '提交失败，请稍后重试' });
+    this.utils.toast({ title: err.message || '提交失败', type: 'error' });
+  }.bind(this));
+}
+
 // ============================================================
 // 渲染
 // ============================================================
 
 export function renderJsx() {
-  var self = this;
   var state = _customState;
   var { timestamp } = this.state;
 
@@ -691,62 +779,6 @@ export function renderJsx() {
     },
   };
 
-  // 表单提交处理
-  function handleSubmit() {
-    var name = _customState.formName.trim();
-    var company = _customState.formCompany.trim();
-    var position = _customState.formPosition;
-    var email = _customState.formEmail.trim();
-
-    if (!name) {
-      self.setCustomState({ submitError: '请填写您的姓名' });
-      return;
-    }
-    if (!company) {
-      self.setCustomState({ submitError: '请填写您的公司名称' });
-      return;
-    }
-    if (!position) {
-      self.setCustomState({ submitError: '请选择您的职位' });
-      return;
-    }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      self.setCustomState({ submitError: '请填写有效的工作邮箱' });
-      return;
-    }
-
-    self.setCustomState({ isSubmitting: true, submitError: '' });
-
-    self.utils.yida.saveFormData({
-      formUuid: FORM_UUID,
-      appType: APP_TYPE,
-      formDataJson: JSON.stringify({
-        node_ocmmn9c58f1: name,
-        node_ocmmn9c58f2: company,
-        node_ocmmn9c58f3: position,
-        node_ocmmn9c58f4: email,
-      }),
-    }).then(function() {
-      self.setCustomState({
-        isSubmitting: false,
-        isSubmitted: true,
-        registeredCount: _customState.registeredCount + 1,
-      });
-    }).catch(function(err) {
-      self.setCustomState({
-        isSubmitting: false,
-        submitError: '提交失败，请稍后重试：' + (err.message || '未知错误'),
-      });
-    });
-  }
-
-  function scrollToForm() {
-    var formEl = document.getElementById('registration-form');
-    if (formEl) {
-      formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }
-
   var padZero = function(num) {
     return num < 10 ? '0' + num : '' + num;
   };
@@ -790,7 +822,7 @@ export function renderJsx() {
             <span style={styles.countdownUnit}>{padZero(state.countdownSeconds)}</span>
             <span>秒</span>
           </div>
-          <button style={styles.topBarCta} onClick={scrollToForm}>立即锁定席位</button>
+          <button style={styles.topBarCta} onClick={(e) => { this.scrollToForm(); }}>立即锁定席位</button>
         </div>
       </div>
 
@@ -816,8 +848,8 @@ export function renderJsx() {
         </div>
 
         <div style={styles.heroBtnGroup}>
-          <button style={styles.btnPrimary} onClick={scrollToForm}>🎟 免费报名</button>
-          <button style={styles.btnSecondary} onClick={function() {
+          <button style={styles.btnPrimary} onClick={(e) => { this.scrollToForm(); }}>🎟 免费报名</button>
+          <button style={styles.btnSecondary} onClick={(e) => {
             var el = document.getElementById('agenda-section');
             if (el) el.scrollIntoView({ behavior: 'smooth' });
           }}>查看议程 →</button>
@@ -958,19 +990,22 @@ export function renderJsx() {
               <span style={styles.successIcon}>🎉</span>
               <div style={styles.successTitle}>报名成功！</div>
               <div style={styles.successDesc}>
-                您的席位已锁定！我们将在活动前发送确认邮件和直播链接。<br />
-                期待与您在 2026年3月15日 14:00 相见！
+                确认邮件已发送至您的邮箱<br/>
+                请查收并添加日历提醒
               </div>
               <div style={styles.successActions}>
-                <button style={styles.successBtn} onClick={function() {
-                  self.utils.toast({ title: '日历邀请已发送至您的邮箱', type: 'success' });
-                }}>📅 添加日历</button>
-                <button style={styles.successBtn} onClick={function() {
-                  self.utils.toast({ title: '分享链接已复制', type: 'success' });
-                }}>🔗 分享给朋友</button>
-                <button style={styles.successBtn} onClick={function() {
-                  self.utils.toast({ title: '白皮书预览将在活动前发送', type: 'info' });
-                }}>📄 预览白皮书</button>
+                <button 
+                  style={styles.successBtn}
+                  onClick={(e) => { this.utils.toast({ title: '白皮书预览将在活动前发送', type: 'info' }); }}
+                >
+                  📄 下载白皮书预览
+                </button>
+                <button 
+                  style={styles.successBtn}
+                  onClick={(e) => { this.utils.toast({ title: '已复制分享链接', type: 'success' }); }}
+                >
+                  🔗 分享给好友
+                </button>
               </div>
             </div>
           ) : (
@@ -1017,10 +1052,10 @@ export function renderJsx() {
                 <select
                   id="field-position"
                   style={styles.formSelect}
-                  defaultValue=""
+                  defaultValue="请选择"
                   onChange={function(e) { _customState.formPosition = e.target.value; }}
                 >
-                  <option value="" disabled>请选择您的职位</option>
+                  <option value="请选择" disabled>请选择您的职位</option>
                   <option value="CEO/创始人">CEO / 创始人</option>
                   <option value="CTO/技术负责人">CTO / 技术负责人</option>
                   <option value="产品经理">产品经理</option>
@@ -1044,7 +1079,7 @@ export function renderJsx() {
 
               <button
                 style={styles.submitBtn}
-                onClick={handleSubmit}
+                onClick={(e) => { this.handleSubmit(e); }}
                 disabled={state.isSubmitting}
               >
                 {state.isSubmitting ? '⏳ 提交中...' : '🚀 立即报名，获取专属席位'}

@@ -66,7 +66,7 @@ export function forceUpdate() {
 
 export function didMount() {
   // 初始化随机蜡烛数量
-  const randomCandles = Math.floor(Math.random() * 6) + 5; // 5-10
+  var randomCandles = Math.floor(Math.random() * 6) + 5; // 5-10
   _customState.totalCandles = randomCandles;
   this.forceUpdate();
 }
@@ -96,7 +96,6 @@ export function didUnmount() {
  * 开始游戏
  */
 export function startGame() {
-  var self = this;
   var nameInput = document.getElementById('birthday-person-input');
   var senderInput = document.getElementById('sender-name-input');
   
@@ -134,19 +133,17 @@ export function startGame() {
  * 启动倒计时
  */
 export function startCountdown() {
-  var self = this;
   this.stopCountdown();
-  
   _customState.countdownTimer = setInterval(function() {
     var current = _customState.countdownSeconds - 1;
     _customState.countdownSeconds = current;
     
     if (current <= 0) {
-      self.handleTimeout();
+      this.handleTimeout();
     } else {
-      self.forceUpdate();
+      this.forceUpdate();
     }
-  }, 1000);
+  }.bind(this), 1000);
 }
 
 /**
@@ -191,7 +188,6 @@ export function retryGame() {
  * 熄灭蜡烛（通过点击或吹气）
  */
 export function extinguishCandle(candleIndex) {
-  var self = this;
   var alreadyExtinguished = _customState.extinguishedCandles.indexOf(candleIndex) !== -1;
   
   if (alreadyExtinguished || _customState.isTimeout) {
@@ -207,8 +203,8 @@ export function extinguishCandle(candleIndex) {
     this.stopBlowDetection();
     setTimeout(function() {
       _customState.gameStage = 'wishing';
-      self.setCustomState({ gameStage: 'wishing' });
-    }, 500);
+      this.setCustomState({ gameStage: 'wishing' });
+    }.bind(this), 500);
   } else {
     this.forceUpdate();
   }
@@ -217,11 +213,9 @@ export function extinguishCandle(candleIndex) {
 /**
  * 请求麦克风权限
  */
-export async function requestMicrophone() {
+export function requestMicrophone() {
   var self = this;
-  
-  try {
-    var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
     _customState.micStream = stream;
     _customState.micPermission = 'granted';
     
@@ -237,21 +231,19 @@ export async function requestMicrophone() {
     _customState.audioAnalyser = analyser;
     
     // 开始检测吹气
-    this.startBlowDetection();
-  } catch (err) {
+    self.startBlowDetection();
+  }).catch(function(err) {
     console.log('麦克风权限被拒绝:', err);
     _customState.micPermission = 'denied';
     // 即使麦克风失败，用户仍可以点击蜡烛
-  }
+  });
 }
 
 /**
  * 开始检测吹气
  */
 export function startBlowDetection() {
-  var self = this;
   this.stopBlowDetection();
-  
   var dataArray = new Uint8Array(_customState.audioAnalyser.frequencyBinCount);
   var lastBlowTime = 0;
   var blowCooldown = 800; // 吹气冷却时间(ms)
@@ -278,12 +270,12 @@ export function startBlowDetection() {
       // 找到第一个未熄灭的蜡烛并熄灭它
       for (var j = 0; j < _customState.totalCandles; j++) {
         if (_customState.extinguishedCandles.indexOf(j) === -1) {
-          self.extinguishCandle(j);
+          this.extinguishCandle(j);
           break;
         }
       }
     }
-  }, 100);
+  }.bind(this), 100);
 }
 
 /**
@@ -354,449 +346,463 @@ export function restartGame() {
 }
 
 // ============================================================
-// 渲染
+// 样式（提取到模块顶层，供各渲染函数共享）
 // ============================================================
 
-export function renderJsx() {
-  var self = this;
+var GAME_STYLES = {
+  container: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+    fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  card: {
+    background: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: '24px',
+    padding: '40px',
+    maxWidth: '480px',
+    width: '100%',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    textAlign: 'center',
+    position: 'relative',
+    zIndex: 10
+  },
+  title: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#764ba2',
+    marginBottom: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px'
+  },
+  subtitle: {
+    fontSize: '16px',
+    color: '#666',
+    marginBottom: '30px'
+  },
+  input: {
+    width: '100%',
+    padding: '15px 20px',
+    fontSize: '16px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    outline: 'none',
+    transition: 'border-color 0.3s',
+    boxSizing: 'border-box'
+  },
+  button: {
+    width: '100%',
+    padding: '16px 32px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#fff',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    marginTop: '10px'
+  },
+  cakeContainer: {
+    position: 'relative',
+    margin: '30px 0'
+  },
+  cake: {
+    fontSize: '120px',
+    lineHeight: '1'
+  },
+  candlesRow: {
+    position: 'absolute',
+    top: '-20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '8px',
+    justifyContent: 'center'
+  },
+  candle: {
+    fontSize: '28px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s, opacity 0.3s',
+    userSelect: 'none'
+  },
+  candleLit: {
+    animation: 'flicker 0.5s infinite alternate'
+  },
+  candleExtinguished: {
+    opacity: 0.5,
+    transform: 'scale(0.9)'
+  },
+  countdown: {
+    fontSize: '48px',
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    margin: '20px 0'
+  },
+  progressBar: {
+    width: '100%',
+    height: '8px',
+    background: '#e0e0e0',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    marginBottom: '20px'
+  },
+  progressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #667eea, #764ba2)',
+    transition: 'width 0.3s ease'
+  },
+  textarea: {
+    width: '100%',
+    padding: '15px 20px',
+    fontSize: '16px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '12px',
+    minHeight: '100px',
+    resize: 'vertical',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit'
+  },
+  blessingCard: {
+    background: 'linear-gradient(135deg, #ffeaa7 0%, #fab1a0 50%, #fd79a8 100%)',
+    borderRadius: '20px',
+    padding: '40px',
+    color: '#fff',
+    textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  },
+  blessingTitle: {
+    fontSize: '36px',
+    fontWeight: 'bold',
+    marginBottom: '20px'
+  },
+  blessingText: {
+    fontSize: '24px',
+    lineHeight: '1.6',
+    marginBottom: '30px',
+    fontStyle: 'italic'
+  },
+  blessingFrom: {
+    fontSize: '16px',
+    opacity: 0.9
+  },
+  confetti: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none',
+    zIndex: 100
+  },
+  micHint: {
+    fontSize: '14px',
+    color: '#888',
+    marginTop: '15px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px'
+  },
+  timeoutOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.7)',
+    borderRadius: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    zIndex: 20
+  },
+  star: {
+    position: 'absolute',
+    color: '#ffd700',
+    fontSize: '20px',
+    animation: 'twinkle 1s infinite'
+  }
+};
+
+// ============================================================
+// 子渲染函数（export function，this 正确绑定）
+// ============================================================
+
+/**
+ * 渲染蜡烛列表
+ */
+export function renderCandles() {
   var state = this.getCustomState();
-  var timestamp = this.state.timestamp;
-  
-  // 样式定义
-  var styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-      position: 'relative',
-      overflow: 'hidden'
-    },
-    card: {
-      background: 'rgba(255, 255, 255, 0.95)',
-      borderRadius: '24px',
-      padding: '40px',
-      maxWidth: '480px',
-      width: '100%',
-      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-      textAlign: 'center',
-      position: 'relative',
-      zIndex: 10
-    },
-    title: {
-      fontSize: '32px',
-      fontWeight: 'bold',
-      color: '#764ba2',
-      marginBottom: '10px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px'
-    },
-    subtitle: {
-      fontSize: '16px',
-      color: '#666',
-      marginBottom: '30px'
-    },
-    input: {
-      width: '100%',
-      padding: '15px 20px',
-      fontSize: '16px',
-      border: '2px solid #e0e0e0',
-      borderRadius: '12px',
-      marginBottom: '20px',
-      outline: 'none',
-      transition: 'border-color 0.3s',
-      boxSizing: 'border-box'
-    },
-    button: {
-      width: '100%',
-      padding: '16px 32px',
-      fontSize: '18px',
-      fontWeight: 'bold',
-      color: '#fff',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      border: 'none',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      marginTop: '10px'
-    },
-    buttonHover: {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)'
-    },
-    cakeContainer: {
-      position: 'relative',
-      margin: '30px 0'
-    },
-    cake: {
-      fontSize: '120px',
-      lineHeight: '1'
-    },
-    candlesRow: {
-      position: 'absolute',
-      top: '-20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      display: 'flex',
-      gap: '8px',
-      justifyContent: 'center'
-    },
-    candle: {
-      fontSize: '28px',
-      cursor: 'pointer',
-      transition: 'transform 0.2s, opacity 0.3s',
-      userSelect: 'none'
-    },
-    candleLit: {
-      animation: 'flicker 0.5s infinite alternate'
-    },
-    candleExtinguished: {
-      opacity: 0.5,
-      transform: 'scale(0.9)'
-    },
-    countdown: {
-      fontSize: '48px',
-      fontWeight: 'bold',
-      color: '#e74c3c',
-      margin: '20px 0'
-    },
-    progressBar: {
-      width: '100%',
-      height: '8px',
-      background: '#e0e0e0',
-      borderRadius: '4px',
-      overflow: 'hidden',
-      marginBottom: '20px'
-    },
-    progressFill: {
-      height: '100%',
-      background: 'linear-gradient(90deg, #667eea, #764ba2)',
-      transition: 'width 0.3s ease'
-    },
-    textarea: {
-      width: '100%',
-      padding: '15px 20px',
-      fontSize: '16px',
-      border: '2px solid #e0e0e0',
-      borderRadius: '12px',
-      minHeight: '100px',
-      resize: 'vertical',
-      outline: 'none',
-      boxSizing: 'border-box',
-      fontFamily: 'inherit'
-    },
-    blessingCard: {
-      background: 'linear-gradient(135deg, #ffeaa7 0%, #fab1a0 50%, #fd79a8 100%)',
-      borderRadius: '20px',
-      padding: '40px',
-      color: '#fff',
-      textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-    },
-    blessingTitle: {
-      fontSize: '36px',
-      fontWeight: 'bold',
-      marginBottom: '20px'
-    },
-    blessingText: {
-      fontSize: '24px',
-      lineHeight: '1.6',
-      marginBottom: '30px',
-      fontStyle: 'italic'
-    },
-    blessingFrom: {
-      fontSize: '16px',
-      opacity: 0.9
-    },
-    confetti: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      pointerEvents: 'none',
-      zIndex: 100
-    },
-    micHint: {
-      fontSize: '14px',
-      color: '#888',
-      marginTop: '15px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '6px'
-    },
-    timeoutOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.7)',
-      borderRadius: '24px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#fff',
-      zIndex: 20
-    },
-    star: {
-      position: 'absolute',
-      color: '#ffd700',
-      fontSize: '20px',
-      animation: 'twinkle 1s infinite'
-    }
-  };
-  
-  // 生成蜡烛位置
-  function renderCandles() {
-    var candles = [];
-    for (var i = 0; i < state.totalCandles; i++) {
-      var isExtinguished = state.extinguishedCandles.indexOf(i) !== -1;
-      candles.push(
+  var candles = [];
+  for (var i = 0; i < state.totalCandles; i++) {
+    // 用立即执行函数捕获循环变量 i，避免闭包陷阱
+    candles.push((function(candleIndex) {
+      var isExtinguished = state.extinguishedCandles.indexOf(candleIndex) !== -1;
+      return (
         <span
-          key={i}
-          style={{
-            ...styles.candle,
-            ...(isExtinguished ? styles.candleExtinguished : styles.candleLit)
-          }}
-          onClick={function(index) {
-            return function() {
-              self.extinguishCandle(index);
-            };
-          }(i)}
+          key={candleIndex}
+          style={Object.assign({}, GAME_STYLES.candle, isExtinguished ? GAME_STYLES.candleExtinguished : GAME_STYLES.candleLit)}
+          onClick={(e) => { this.extinguishCandle(candleIndex); }}
         >
           {isExtinguished ? '💨' : '🕯️'}
         </span>
       );
-    }
-    return candles;
+    }).call(this, i));
   }
-  
-  // 生成星星装饰
-  function renderStars() {
-    if (state.gameStage !== 'celebrating') return null;
-    var stars = [];
-    for (var i = 0; i < 20; i++) {
-      var left = Math.random() * 100;
-      var top = Math.random() * 100;
-      var delay = Math.random() * 2;
-      stars.push(
-        <span
-          key={i}
-          style={{
-            ...styles.star,
-            left: left + '%',
-            top: top + '%',
-            animationDelay: delay + 's'
-          }}
-        >
-          ✨
-        </span>
-      );
-    }
-    return stars;
-  }
-  
-  // 欢迎界面
-  function renderWelcome() {
-    return (
-      <div style={styles.card}>
-        <div style={styles.title}>
-          🎂 生日祝福
-        </div>
-        <div style={styles.subtitle}>
-          为TA点燃蜡烛，送上最真挚的祝福
-        </div>
-        
-        <input
-          id="birthday-person-input"
-          type="text"
-          placeholder="请输入寿星姓名"
-          style={styles.input}
-          defaultValue=""
-        />
-        
-        <input
-          id="sender-name-input"
-          type="text"
-          placeholder="请输入您的姓名（选填）"
-          style={styles.input}
-          defaultValue=""
-        />
-        
-        <button
-          style={styles.button}
-          onMouseEnter={function(e) {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
-          }}
-          onMouseLeave={function(e) {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = 'none';
-          }}
-          onClick={function() { self.startGame(); }}
-        >
-          🎉 开始游戏
-        </button>
-        
-        <div style={styles.micHint}>
-          🎤 支持吹灭蜡烛哦~
-        </div>
-      </div>
+  return candles;
+}
+
+/**
+ * 渲染星星装饰（庆祝阶段）
+ */
+export function renderStars() {
+  var state = this.getCustomState();
+  if (state.gameStage !== 'celebrating') return null;
+  var stars = [];
+  for (var i = 0; i < 20; i++) {
+    var starLeft = Math.random() * 100;
+    var starTop = Math.random() * 100;
+    var starDelay = Math.random() * 2;
+    stars.push(
+      <span
+        key={i}
+        style={Object.assign({}, GAME_STYLES.star, {
+          left: starLeft + '%',
+          top: starTop + '%',
+          animationDelay: starDelay + 's'
+        })}
+      >
+        ✨
+      </span>
     );
   }
-  
-  // 游戏界面
-  function renderPlaying() {
-    var progressPercent = (state.extinguishedCandles.length / state.totalCandles) * 100;
-    
-    return (
-      <div style={styles.card}>
-        <div style={styles.title}>
-          🎂 点蜡烛
-        </div>
-        
-        <div style={styles.progressBar}>
-          <div style={{...styles.progressFill, width: progressPercent + '%'}}></div>
-        </div>
-        
-        <div style={styles.countdown}>
-          {state.countdownSeconds}s
-        </div>
-        
-        <div style={styles.cakeContainer}>
-          <div style={styles.candlesRow}>
-            {renderCandles()}
-          </div>
-          <div style={styles.cake}>🎂</div>
-        </div>
-        
-        <div style={styles.subtitle}>
-          {state.micPermission === 'denied' 
-            ? '👆 点击蜡烛将其熄灭' 
-            : '吹气或点击蜡烛'}
-        </div>
-        
-        <div style={styles.subtitle}>
-          已熄灭 {state.extinguishedCandles.length} / {state.totalCandles} 根蜡烛
-        </div>
-        
-        {state.isTimeout && (
-          <div style={styles.timeoutOverlay}>
-            <div style={{fontSize: '48px', marginBottom: '20px'}}>⏰</div>
-            <div style={{fontSize: '24px', marginBottom: '20px'}}>时间到！</div>
-            <button
-              style={{...styles.button, width: 'auto', padding: '12px 30px'}}
-              onClick={function() { self.retryGame(); }}
-            >
-              🔄 再试一次
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-  
-  // 许愿界面
-  function renderWishing() {
-    return (
-      <div style={styles.card}>
-        <div style={styles.title}>
-          ⭐ 许愿时刻
-        </div>
-        
-        <div style={{fontSize: '64px', marginBottom: '20px'}}>✨</div>
-        
-        <div style={styles.subtitle}>
-          所有蜡烛已熄灭！请为 {state.birthdayPersonName} 送上祝福
-        </div>
-        
-        <textarea
-          id="blessing-input"
-          placeholder="写下你的生日祝福..."
-          style={styles.textarea}
-          defaultValue=""
-        ></textarea>
-        
-        <button
-          style={styles.button}
-          onClick={function() { self.submitBlessing(); }}
-        >
-          💝 送出祝福
-        </button>
-      </div>
-    );
-  }
-  
-  // 庆祝界面
-  function renderCelebrating() {
-    return (
-      <div style={{...styles.card, ...styles.blessingCard}}>
-        {renderStars()}
-        
-        <div style={styles.blessingTitle}>
-          🎉 生日快乐
-        </div>
-        
-        <div style={{fontSize: '72px', marginBottom: '20px'}}>
-          🎂
-        </div>
-        
-        <div style={{fontSize: '28px', marginBottom: '10px'}}>
-          亲爱的 {state.birthdayPersonName}
-        </div>
-        
-        <div style={styles.blessingText}>
-          "{state.blessingMessage}"
-        </div>
-        
-        <div style={styles.blessingFrom}>
-          —— {state.senderName} 敬上
-        </div>
-        
-        <button
-          style={{
-            ...styles.button,
-            marginTop: '30px',
-            background: 'rgba(255,255,255,0.3)',
-            backdropFilter: 'blur(10px)'
-          }}
-          onClick={function() { self.restartGame(); }}
-        >
-          🎮 再玩一次
-        </button>
-      </div>
-    );
-  }
-  
-  // 渲染当前阶段
-  function renderCurrentStage() {
-    switch (state.gameStage) {
-      case 'welcome':
-        return renderWelcome();
-      case 'playing':
-        return renderPlaying();
-      case 'wishing':
-        return renderWishing();
-      case 'celebrating':
-        return renderCelebrating();
-      default:
-        return renderWelcome();
-    }
-  }
-  
+  return stars;
+}
+
+/**
+ * 渲染欢迎界面
+ */
+export function renderWelcome() {
   return (
-    <div style={styles.container}>
+    <div style={GAME_STYLES.card}>
+      <div style={GAME_STYLES.title}>
+        🎂 生日祝福
+      </div>
+      <div style={GAME_STYLES.subtitle}>
+        为TA点燃蜡烛，送上最真挚的祝福
+      </div>
+
+      <input
+        id="birthday-person-input"
+        type="text"
+        placeholder="请输入寿星姓名"
+        style={GAME_STYLES.input}
+        defaultValue=""
+      />
+
+      <input
+        id="sender-name-input"
+        type="text"
+        placeholder="请输入您的姓名（选填）"
+        style={GAME_STYLES.input}
+        defaultValue=""
+      />
+
+      <button
+        style={GAME_STYLES.button}
+        onMouseEnter={function(e) {
+          e.target.style.transform = 'translateY(-2px)';
+          e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+        }}
+        onMouseLeave={function(e) {
+          e.target.style.transform = 'translateY(0)';
+          e.target.style.boxShadow = 'none';
+        }}
+        onClick={(e) => { this.startGame(); }}
+      >
+        🎉 开始游戏
+      </button>
+
+      <div style={GAME_STYLES.micHint}>
+        🎤 支持吹灭蜡烛哦~
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 渲染游戏界面
+ */
+export function renderPlaying() {
+  var state = this.getCustomState();
+  var progressPercent = (state.extinguishedCandles.length / state.totalCandles) * 100;
+
+  return (
+    <div style={GAME_STYLES.card}>
+      <div style={GAME_STYLES.title}>
+        🎂 点蜡烛
+      </div>
+
+      <div style={GAME_STYLES.progressBar}>
+        <div style={Object.assign({}, GAME_STYLES.progressFill, { width: progressPercent + '%' })}></div>
+      </div>
+
+      <div style={GAME_STYLES.countdown}>
+        {state.countdownSeconds}s
+      </div>
+
+      <div style={GAME_STYLES.cakeContainer}>
+        <div style={GAME_STYLES.candlesRow}>
+          {this.renderCandles()}
+        </div>
+        <div style={GAME_STYLES.cake}>🎂</div>
+      </div>
+
+      <div style={GAME_STYLES.subtitle}>
+        {state.micPermission === 'denied'
+          ? '👆 点击蜡烛将其熄灭'
+          : '吹气或点击蜡烛'}
+      </div>
+
+      <div style={GAME_STYLES.subtitle}>
+        已熄灭 {state.extinguishedCandles.length} / {state.totalCandles} 根蜡烛
+      </div>
+
+      {state.isTimeout && (
+        <div style={GAME_STYLES.timeoutOverlay}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏰</div>
+          <div style={{ fontSize: '24px', marginBottom: '20px' }}>时间到！</div>
+          <button
+            style={Object.assign({}, GAME_STYLES.button, { width: 'auto', padding: '12px 30px' })}
+            onClick={(e) => { this.retryGame(); }}
+          >
+            🔄 再试一次
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 渲染许愿界面
+ */
+export function renderWishing() {
+  var state = this.getCustomState();
+
+  return (
+    <div style={GAME_STYLES.card}>
+      <div style={GAME_STYLES.title}>
+        ⭐ 许愿时刻
+      </div>
+
+      <div style={{ fontSize: '64px', marginBottom: '20px' }}>✨</div>
+
+      <div style={GAME_STYLES.subtitle}>
+        所有蜡烛已熄灭！请为 {state.birthdayPersonName} 送上祝福
+      </div>
+
+      <textarea
+        id="blessing-input"
+        placeholder="写下你的生日祝福..."
+        style={GAME_STYLES.textarea}
+        defaultValue=""
+      ></textarea>
+
+      <button
+        style={GAME_STYLES.button}
+        onClick={(e) => { this.submitBlessing(); }}
+      >
+        💝 送出祝福
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 渲染庆祝界面
+ */
+export function renderCelebrating() {
+  var state = this.getCustomState();
+
+  return (
+    <div style={Object.assign({}, GAME_STYLES.card, GAME_STYLES.blessingCard)}>
+      {this.renderStars()}
+
+      <div style={GAME_STYLES.blessingTitle}>
+        🎉 生日快乐
+      </div>
+
+      <div style={{ fontSize: '72px', marginBottom: '20px' }}>
+        🎂
+      </div>
+
+      <div style={{ fontSize: '28px', marginBottom: '10px' }}>
+        亲爱的 {state.birthdayPersonName}
+      </div>
+
+      <div style={GAME_STYLES.blessingText}>
+        "{state.blessingMessage}"
+      </div>
+
+      <div style={GAME_STYLES.blessingFrom}>
+        —— {state.senderName} 敬上
+      </div>
+
+      <button
+        style={Object.assign({}, GAME_STYLES.button, {
+          marginTop: '30px',
+          background: 'rgba(255,255,255,0.3)',
+          backdropFilter: 'blur(10px)'
+        })}
+        onClick={(e) => { this.restartGame(); }}
+      >
+        🎮 再玩一次
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// 渲染
+// ============================================================
+
+export function renderJsx() {
+  var state = this.getCustomState();
+  var timestamp = this.state.timestamp;
+
+  var currentStage;
+  switch (state.gameStage) {
+    case 'playing':
+      currentStage = this.renderPlaying();
+      break;
+    case 'wishing':
+      currentStage = this.renderWishing();
+      break;
+    case 'celebrating':
+      currentStage = this.renderCelebrating();
+      break;
+    default:
+      currentStage = this.renderWelcome();
+  }
+
+  return (
+    <div style={GAME_STYLES.container}>
       {/* 用于触发重新渲染 */}
-      <div style={{display: 'none'}}>{timestamp}</div>
-      
+      <div style={{ display: 'none' }}>{timestamp}</div>
+
       {/* CSS 动画 */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes flicker {
@@ -812,16 +818,16 @@ export function renderJsx() {
           100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
       `}} />
-      
+
       {/* 彩带效果 */}
       {state.gameStage === 'celebrating' && (
         <canvas
           id="confetti-canvas"
-          style={styles.confetti}
+          style={GAME_STYLES.confetti}
         />
       )}
-      
-      {renderCurrentStage()}
+
+      {currentStage}
     </div>
   );
 }

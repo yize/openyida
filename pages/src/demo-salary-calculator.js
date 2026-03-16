@@ -195,12 +195,82 @@ export function didMount() {
 
 export function didUnmount() {}
 
+export function saveToStorage() {
+  try {
+    var toSave = {
+      monthlySalary: _customState.monthlySalary,
+      bonusMonths: _customState.bonusMonths,
+      city: _customState.city,
+      providentFundRate: _customState.providentFundRate,
+      socialSecurityBase: _customState.socialSecurityBase,
+      childEducation: _customState.childEducation,
+      housingLoan: _customState.housingLoan,
+      elderCare: _customState.elderCare,
+      supplementProvidentFund: _customState.supplementProvidentFund,
+    };
+    localStorage.setItem('salary_calculator_state', JSON.stringify(toSave));
+  } catch (e) {}
+}
+
+export function triggerCalculate() {
+  _customState.result = calculate(_customState);
+  this.saveToStorage();
+  this.forceUpdate();
+}
+
+export function handleCalculate() {
+  _customState.result = calculate(_customState);
+  this.saveToStorage();
+  this.forceUpdate();
+}
+
+export function handleCopy() {
+  var result = _customState.result || {};
+  if (!result.annualGrossSalary) return;
+  var state = _customState;
+  var cityName = (CITY_DATA[state.city] || CITY_DATA.beijing).name;
+  var text = [
+    '📊 薪资计算结果',
+    '━━━━━━━━━━━━━━━━━━',
+    '城市：' + cityName,
+    '月薪：¥' + formatMoney(state.monthlySalary),
+    '年终奖：' + state.bonusMonths + ' 个月',
+    '━━━━━━━━━━━━━━━━━━',
+    '税前年薪：¥' + formatMoney(result.annualGrossSalary),
+    '税后月收入：¥' + formatMoney(result.monthlyNetSalary),
+    '税后年薪：¥' + formatMoney(result.annualNetSalary),
+    '平均时薪：¥' + formatMoney(result.hourlyRate) + '/小时',
+    '月缴五险一金：¥' + formatMoney(result.monthlySocialInsurance),
+    '月缴个税：¥' + formatMoney(result.monthlyTax),
+    '综合税率：' + result.effectiveTaxRate + '%',
+    '━━━━━━━━━━━━━━━━━━',
+    '计算结果仅供参考，以实际劳动合同和当地政策为准',
+  ].join('\n');
+
+  try {
+    navigator.clipboard.writeText(text).then(() => {
+      _customState.copySuccess = true;
+      this.forceUpdate();
+      setTimeout(() => {
+        _customState.copySuccess = false;
+        this.forceUpdate();
+      }, 2000);
+    });
+  } catch (e) {
+    this.utils.toast({ title: '复制失败，请手动复制', type: 'error' });
+  }
+}
+
+export function toggleAdvanced() {
+  _customState.advancedExpanded = !_customState.advancedExpanded;
+  this.forceUpdate();
+}
+
 // ============================================================
 // 渲染
 // ============================================================
 
 export function renderJsx() {
-  var self = this;
   var { timestamp } = this.state;
   var state = _customState;
   var result = state.result || {};
@@ -520,85 +590,9 @@ export function renderJsx() {
     _customState.supplementProvidentFund = parseFloat(e.target.value) || 0;
   }
 
-  function triggerCalculate() {
-    _customState.result = calculate(_customState);
-    saveToStorage();
-    self.forceUpdate();
-  }
 
-  function handleCalculate() {
-    _customState.result = calculate(_customState);
-    saveToStorage();
-    self.forceUpdate();
-  }
-
-  function saveToStorage() {
-    try {
-      var toSave = {
-        monthlySalary: _customState.monthlySalary,
-        bonusMonths: _customState.bonusMonths,
-        city: _customState.city,
-        providentFundRate: _customState.providentFundRate,
-        socialSecurityBase: _customState.socialSecurityBase,
-        childEducation: _customState.childEducation,
-        housingLoan: _customState.housingLoan,
-        elderCare: _customState.elderCare,
-        supplementProvidentFund: _customState.supplementProvidentFund,
-      };
-      localStorage.setItem('salary_calculator_state', JSON.stringify(toSave));
-    } catch (e) {}
-  }
-
-  function handleCopy() {
-    if (!result.annualGrossSalary) return;
-    var cityName = (CITY_DATA[state.city] || CITY_DATA.beijing).name;
-    var text = [
-      '📊 薪资计算结果',
-      '━━━━━━━━━━━━━━━━━━',
-      '城市：' + cityName,
-      '月薪：¥' + formatMoney(state.monthlySalary),
-      '年终奖：' + state.bonusMonths + ' 个月',
-      '━━━━━━━━━━━━━━━━━━',
-      '税前年薪：¥' + formatMoney(result.annualGrossSalary),
-      '税后月收入：¥' + formatMoney(result.monthlyNetSalary),
-      '税后年薪：¥' + formatMoney(result.annualNetSalary),
-      '平均时薪：¥' + formatMoney(result.hourlyRate) + '/小时',
-      '月缴五险一金：¥' + formatMoney(result.monthlySocialInsurance),
-      '月缴个税：¥' + formatMoney(result.monthlyTax),
-      '综合税率：' + result.effectiveTaxRate + '%',
-      '━━━━━━━━━━━━━━━━━━',
-      '计算结果仅供参考，以实际劳动合同和当地政策为准',
-    ].join('\n');
-
-    try {
-      navigator.clipboard.writeText(text).then(function() {
-        _customState.copySuccess = true;
-        self.forceUpdate();
-        setTimeout(function() {
-          _customState.copySuccess = false;
-          self.forceUpdate();
-        }, 2000);
-      });
-    } catch (e) {
-      self.utils.toast({ title: '复制失败，请手动复制', type: 'error' });
-    }
-  }
-
-  function setQuickBonus(months) {
-    _customState.bonusMonths = months;
-    triggerCalculate();
-  }
-
-  function toggleAdvanced() {
-    _customState.advancedExpanded = !_customState.advancedExpanded;
-    self.forceUpdate();
-  }
 
   // ---- 计算进度条宽度 ----
-  var totalMonthly = (state.monthlySalary || 0);
-  var netPct = totalMonthly > 0 ? Math.min(100, (result.monthlyNetSalary || 0) / totalMonthly * 100) : 0;
-  var siPct = totalMonthly > 0 ? Math.min(100, (result.monthlySocialInsurance || 0) / totalMonthly * 100) : 0;
-  var taxPct = totalMonthly > 0 ? Math.min(100, (result.monthlyTax || 0) / totalMonthly * 100) : 0;
 
   var cityOptions = Object.keys(CITY_DATA).map(function(key) {
     return <option key={key} value={key}>{CITY_DATA[key].name}</option>;
@@ -635,15 +629,15 @@ export function renderJsx() {
               style={styles.input}
               defaultValue={state.monthlySalary}
               placeholder="例如：25000"
-              onChange={handleSalaryChange}
-              onBlur={handleCalculate}
+              onChange={function(e) { _customState.monthlySalary = parseFloat(e.target.value) || 0; }}
+              onBlur={(e) => { this.handleCalculate(); }}
             />
           </div>
 
           {/* 工作城市 */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>工作城市</label>
-            <select style={styles.select} value={state.city} onChange={handleCityChange}>
+            <select style={styles.select} defaultValue={state.city} onChange={(e) => { _customState.city = e.target.value; this.triggerCalculate(); }}>
               {cityOptions}
             </select>
           </div>
@@ -658,8 +652,8 @@ export function renderJsx() {
                 max="6"
                 step="0.5"
                 style={styles.slider}
-                value={state.bonusMonths}
-                onChange={handleBonusSlider}
+                defaultValue={state.bonusMonths}
+                onChange={(e) => { _customState.bonusMonths = parseFloat(e.target.value); this.triggerCalculate(); }}
               />
               <span style={styles.sliderValue}>{state.bonusMonths}月</span>
             </div>
@@ -669,7 +663,7 @@ export function renderJsx() {
                   <button
                     key={opt.value}
                     style={state.bonusMonths === opt.value ? styles.quickBtnActive : styles.quickBtn}
-                    onClick={function() { setQuickBonus(opt.value); }}
+                    onClick={(e) => { _customState.bonusMonths = opt.value; this.triggerCalculate(); }}
                   >
                     {opt.label}
                   </button>
@@ -679,7 +673,7 @@ export function renderJsx() {
           </div>
 
           {/* 高级设置折叠 */}
-          <div style={styles.advancedToggle} onClick={toggleAdvanced}>
+          <div style={styles.advancedToggle} onClick={(e) => { this.toggleAdvanced(); }}>
             <span>⚙️ 高级设置（公积金比例、专项扣除等）</span>
             <span>{state.advancedExpanded ? '▲' : '▼'}</span>
           </div>
@@ -690,15 +684,8 @@ export function renderJsx() {
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>公积金比例：<span style={{ color: '#10B981', fontWeight: 700 }}>{Math.round((state.providentFundRate || 0.12) * 100)}%</span></label>
                 <div style={styles.sliderRow}>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="0.12"
-                    step="0.01"
-                    style={styles.slider}
-                    value={state.providentFundRate}
-                    onChange={handlePFRateChange}
-                  />
+                defaultValue={state.providentFundRate}
+                onChange={(e) => { _customState.providentFundRate = parseFloat(e.target.value) || 0.12; this.triggerCalculate(); }}
                   <span style={styles.sliderValue}>{Math.round((state.providentFundRate || 0.12) * 100)}%</span>
                 </div>
               </div>
@@ -706,7 +693,7 @@ export function renderJsx() {
               {/* 社保方案 */}
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>社保缴纳基数</label>
-                <select style={styles.select} value={state.socialSecurityBase} onChange={handleSSBaseChange}>
+                <select style={styles.select} defaultValue={state.socialSecurityBase} onChange={(e) => { _customState.socialSecurityBase = e.target.value; this.triggerCalculate(); }}>
                   <option value="actual">按实际工资（推荐）</option>
                   <option value="min">按最低基数</option>
                   <option value="max">按上限基数</option>
@@ -723,8 +710,8 @@ export function renderJsx() {
                   style={styles.input}
                   defaultValue={state.childEducation}
                   placeholder="0（每孩每月最高2000）"
-                  onChange={function(e) { handleSpecialDeductionChange('childEducation', e); }}
-                  onBlur={handleCalculate}
+                  onChange={function(e) { _customState.childEducation = parseFloat(e.target.value) || 0; }}
+                  onBlur={(e) => { this.handleCalculate(); }}
                 />
               </div>
 
@@ -735,8 +722,8 @@ export function renderJsx() {
                   style={styles.input}
                   defaultValue={state.housingLoan}
                   placeholder="0（每月最高1000）"
-                  onChange={function(e) { handleSpecialDeductionChange('housingLoan', e); }}
-                  onBlur={handleCalculate}
+                  onChange={function(e) { _customState.housingLoan = parseFloat(e.target.value) || 0; }}
+                  onBlur={(e) => { this.handleCalculate(); }}
                 />
               </div>
 
@@ -747,8 +734,8 @@ export function renderJsx() {
                   style={styles.input}
                   defaultValue={state.elderCare}
                   placeholder="0（每月最高3000）"
-                  onChange={function(e) { handleSpecialDeductionChange('elderCare', e); }}
-                  onBlur={handleCalculate}
+                  onChange={function(e) { _customState.elderCare = parseFloat(e.target.value) || 0; }}
+                  onBlur={(e) => { this.handleCalculate(); }}
                 />
               </div>
 
@@ -759,16 +746,13 @@ export function renderJsx() {
                   style={styles.input}
                   defaultValue={state.supplementProvidentFund}
                   placeholder="0"
-                  onChange={handleSupplementPFChange}
-                  onBlur={handleCalculate}
+                  onChange={function(e) { _customState.supplementProvidentFund = parseFloat(e.target.value) || 0; }}
+                  onBlur={(e) => { this.handleCalculate(); }}
                 />
               </div>
             </div>
           )}
 
-          <button style={styles.calcBtn} onClick={handleCalculate}>
-            🧮 立即计算
-          </button>
         </div>
 
         {/* 右侧结果区 */}
@@ -819,16 +803,29 @@ export function renderJsx() {
             {/* 进度条可视化 */}
             <div style={{ margin: '12px 0 16px' }}>
               <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>月薪构成分布</div>
-              <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', gap: '2px' }}>
-                <div style={{ width: netPct + '%', background: '#10B981', borderRadius: '6px 0 0 6px', transition: 'width 0.4s' }} title={'到手 ' + netPct.toFixed(1) + '%'} />
-                <div style={{ width: siPct + '%', background: '#3B82F6', transition: 'width 0.4s' }} title={'五险一金 ' + siPct.toFixed(1) + '%'} />
-                <div style={{ width: taxPct + '%', background: '#9CA3AF', borderRadius: '0 6px 6px 0', transition: 'width 0.4s' }} title={'个税 ' + taxPct.toFixed(1) + '%'} />
-              </div>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11px', color: '#6B7280' }}>
-                <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#10B981', marginRight: '4px' }} />到手 {netPct.toFixed(1)}%</span>
-                <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#3B82F6', marginRight: '4px' }} />五险一金 {siPct.toFixed(1)}%</span>
-                <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#9CA3AF', marginRight: '4px' }} />个税 {taxPct.toFixed(1)}%</span>
-              </div>
+              {(function() {
+                var gross = result.annualGrossSalary / 12 || 0;
+                var net = result.monthlyNetSalary || 0;
+                var si = result.monthlySocialInsurance || 0;
+                var tax = result.monthlyTax || 0;
+                var netPct = gross > 0 ? (net / gross) * 100 : 0;
+                var siPct = gross > 0 ? (si / gross) * 100 : 0;
+                var taxPct = gross > 0 ? (tax / gross) * 100 : 0;
+                return (
+                  <div>
+                    <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', gap: '2px' }}>
+                      <div style={{ width: netPct + '%', background: '#10B981', borderRadius: '6px 0 0 6px', transition: 'width 0.4s' }} title={'到手 ' + netPct.toFixed(1) + '%'} />
+                      <div style={{ width: siPct + '%', background: '#3B82F6', transition: 'width 0.4s' }} title={'五险一金 ' + siPct.toFixed(1) + '%'} />
+                      <div style={{ width: taxPct + '%', background: '#9CA3AF', borderRadius: '0 6px 6px 0', transition: 'width 0.4s' }} title={'个税 ' + taxPct.toFixed(1) + '%'} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11px', color: '#6B7280' }}>
+                      <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#10B981', marginRight: '4px' }} />到手 {netPct.toFixed(1)}%</span>
+                      <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#3B82F6', marginRight: '4px' }} />五险一金 {siPct.toFixed(1)}%</span>
+                      <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#9CA3AF', marginRight: '4px' }} />个税 {taxPct.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div style={styles.detailRow}>
@@ -890,7 +887,7 @@ export function renderJsx() {
 
           {/* 操作按钮 */}
           <div style={styles.actionRow}>
-            <button style={styles.copyBtn} onClick={handleCopy}>
+            <button style={styles.copyBtn} onClick={(e) => { this.handleCopy(); }}>
               {state.copySuccess ? '✅ 已复制！' : '📋 一键复制结果'}
             </button>
           </div>
